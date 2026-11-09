@@ -22,6 +22,7 @@ type FieldKey =
   | "points"
   | "program"
   | "date"
+  | "end_date"
   | "entry_type";
 
 // Order matters for header guessing: earlier fields claim columns first.
@@ -35,6 +36,7 @@ const FIELDS: { key: FieldKey; label: string; guess: RegExp; group: "expense" | 
   { key: "category", label: "Category", guess: /categ/, group: "expense" },
   { key: "points", label: "Points redeemed", guess: /points|miles|\bpts\b/, group: "expense" },
   { key: "program", label: "Loyalty program", guess: /program|loyalty|rewards/, group: "expense" },
+  { key: "end_date", label: "End date (hotel check-out)", guess: /^end date$|check.?out/, group: "expense" },
   { key: "date", label: "Expense date", guess: /date|posted|^when$/, group: "expense" },
   { key: "amount", label: "Cash amount (USD)", guess: /amount|cost|price|cash|usd|total|spent|debit/, group: "expense" },
   { key: "description", label: "Description", guess: /desc|memo|merchant|item|details|payee|name|note/, group: "expense" },
@@ -55,6 +57,7 @@ interface Parsed {
   points: number;
   program: string | null;
   date: string | null;
+  endDate: string | null;
   entryType: EntryType;
   errors: string[];
   empty: boolean;
@@ -68,11 +71,9 @@ function matchCategory(v: string): Category | null {
   for (const c of CATEGORIES) if (s === c.key || s === c.label.toLowerCase()) return c.key;
   if (/flight|air/.test(s)) return "flights";
   if (/hotel|lodg|accom|stay/.test(s)) return "lodging";
-  if (/food|drink|dining|meal|restaurant/.test(s)) return "food";
+  if (/food|drink|dining|meal|restaurant|shop|other|misc/.test(s)) return "other";
   if (/transport|transit/.test(s)) return "transport";
   if (/event|activit|entertain|tour/.test(s)) return "activities";
-  if (/shop/.test(s)) return "shopping";
-  if (/other|misc/.test(s)) return "other";
   return null;
 }
 
@@ -157,6 +158,8 @@ function Importer() {
       const points = Number.isNaN(pointsRaw) ? 0 : Math.round(pointsRaw ?? 0);
       const date = parseDateCell(get(row, "date"));
       if (date === undefined) errors.push("Invalid date");
+      const endDate = parseDateCell(get(row, "end_date"));
+      if (endDate === undefined) errors.push("Invalid end date");
       const catText = str(get(row, "category"));
       const tripName = str(get(row, "trip"));
       if (!tripName && !targetTrip) errors.push("No trip");
@@ -175,6 +178,7 @@ function Importer() {
         points,
         program: str(get(row, "program")) || null,
         date: date ?? null,
+        endDate: endDate ?? null,
         entryType: matchEntryType(str(get(row, "entry_type"))),
         errors,
         empty: empty || (amount === 0 && points === 0 && !errors.some((e) => e.startsWith("Invalid"))),
@@ -219,6 +223,7 @@ function Importer() {
         points: p.points,
         program: p.program,
         expense_date: p.date,
+        end_date: p.endDate,
         entry_type: p.entryType,
         created_at: new Date(now + n).toISOString(),
       }));
@@ -467,7 +472,7 @@ function Importer() {
   );
 }
 
-const ORDER: FieldKey[] = ["date", "category", "description", "amount", "points", "program", "entry_type"];
+const ORDER: FieldKey[] = ["date", "end_date", "category", "description", "amount", "points", "program", "entry_type"];
 
 function MapSelect({
   label,

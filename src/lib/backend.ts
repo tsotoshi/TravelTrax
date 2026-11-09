@@ -1,6 +1,6 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { sampleData } from "./sample";
-import type { Expense, Trip, TripInput } from "./types";
+import { normCategory, type Expense, type Trip, type TripInput } from "./types";
 
 export interface Backend {
   load(): Promise<{ trips: Trip[]; expenses: Expense[] }>;
@@ -20,7 +20,16 @@ export const supabase: SupabaseClient | null = url && key ? createClient(url, ke
 /* ---------------- Supabase ---------------- */
 
 const tripCols = "id,name,destination,start_date,end_date,notes,created_at";
-const expenseCols = "id,trip_id,category,description,amount,points,program,expense_date,entry_type,created_at";
+const expenseCols = "id,trip_id,category,description,amount,points,program,expense_date,end_date,entry_type,created_at";
+
+/** Coerce numeric strings and fold legacy categories. */
+const clean = (e: Expense): Expense => ({
+  ...e,
+  category: normCategory(e.category),
+  amount: Number(e.amount),
+  points: Number(e.points),
+  end_date: e.end_date ?? null,
+});
 
 async function fetchAll<T>(sb: SupabaseClient, table: string, cols: string): Promise<T[]> {
   const out: T[] = [];
@@ -43,7 +52,7 @@ export function supabaseBackend(sb: SupabaseClient): Backend {
         fetchAll<Trip>(sb, "trips", tripCols),
         fetchAll<Expense>(sb, "expenses", expenseCols),
       ]);
-      return { trips, expenses: expenses.map((e) => ({ ...e, amount: Number(e.amount), points: Number(e.points) })) };
+      return { trips, expenses: expenses.map(clean) };
     },
     async insertTrips(trips) {
       if (trips.length) check(await sb.from("trips").insert(trips));
@@ -68,7 +77,7 @@ export function supabaseBackend(sb: SupabaseClient): Backend {
 
 /* ---------------- Demo (localStorage) ---------------- */
 
-const KEY = "traveltrax-demo-v1";
+const KEY = "traveltrax-demo-v2";
 
 export function demoBackend(): Backend {
   let db: { trips: Trip[]; expenses: Expense[] };
@@ -93,6 +102,7 @@ export function demoBackend(): Backend {
   return {
     async load() {
       const d = read();
+      d.expenses = d.expenses.map(clean);
       return { trips: [...d.trips], expenses: [...d.expenses] };
     },
     async insertTrips(trips) {

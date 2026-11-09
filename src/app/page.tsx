@@ -5,9 +5,9 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { Icon } from "@/components/Icon";
 import { TripForm } from "@/components/TripForm";
-import { BarList, CategoryIcon, CategoryStrip, EmptyState, ExportMenu, Modal, Stat, YearChart } from "@/components/ui";
+import { BarList, CategoryIcon, CategoryStrip, EmptyState, ExportMenu, Modal, YearChart } from "@/components/ui";
 import { EMPTY_SUMMARY, summarizeByTrip } from "@/lib/calc";
-import { fmtRange, nights, pts, usd } from "@/lib/format";
+import { compact, fmtRange, nights, pts, usd } from "@/lib/format";
 import { useStore } from "@/lib/store";
 import { CATEGORIES } from "@/lib/types";
 
@@ -59,7 +59,7 @@ export default function Dashboard() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
+          <h1 className="text-3xl font-semibold tracking-tight">Your travels</h1>
           <p className="text-sm text-zinc-500">{year === "all" ? "All trips" : `Trips in ${year}`}</p>
         </div>
         <div className="flex gap-2">
@@ -100,18 +100,22 @@ export default function Dashboard() {
         </EmptyState>
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
-            <Stat icon="wallet" label="Cash spent" value={usd(totals.cash)} sub="USD" />
-            <Stat icon="star" label="Points redeemed" value={pts(totals.points)} sub={`${totals.progs.size} program${totals.progs.size === 1 ? "" : "s"}`} />
-            <div className="col-span-2 lg:col-span-1">
-              <Stat
-                icon="map"
-                label="Trips"
-                value={String(shown.length)}
-                sub={`${shown.reduce((s, t) => s + nights(t.start_date, t.end_date), 0)} nights away`}
-              />
+          <section className="hero p-5 sm:p-7">
+            <div className="text-sm font-medium text-white/75">{year === "all" ? "Total spent on travel" : `Spent on travel in ${year}`}</div>
+            <div className="mt-1 text-4xl font-semibold tracking-tight tabular-nums sm:text-5xl">{usd(totals.cash)}</div>
+            <div className="mt-6 grid grid-cols-3 gap-3">
+              {[
+                ["Points", compact(totals.points)],
+                ["Trips", String(shown.length)],
+                ["Nights", String(shown.reduce((s, t) => s + nights(t.start_date, t.end_date), 0))],
+              ].map(([l, v]) => (
+                <div key={l} className="rounded-2xl bg-white/12 px-3 py-2.5 backdrop-blur-sm">
+                  <div className="text-[11px] font-medium tracking-wide text-white/70 uppercase">{l}</div>
+                  <div className="mt-0.5 truncate text-lg font-semibold tabular-nums sm:text-xl">{v}</div>
+                </div>
+              ))}
             </div>
-          </div>
+          </section>
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
             <section className="card flex flex-col p-5">
@@ -161,7 +165,7 @@ export default function Dashboard() {
               {shown.map((t) => {
                 const s = sums.get(t.id) ?? EMPTY_SUMMARY;
                 return (
-                  <Link key={t.id} href={`/trips/${t.id}`} className="card group block p-4 transition hover:shadow-md hover:shadow-zinc-200/60 dark:hover:border-zinc-700 dark:hover:shadow-none">
+                  <Link key={t.id} href={`/trips/${t.id}`} className="card group block p-5 transition hover:-translate-y-0.5 hover:shadow-lg">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <h3 className="truncate font-semibold group-hover:text-[var(--accent)]">{t.name}</h3>
@@ -194,12 +198,12 @@ export default function Dashboard() {
       )}
 
       {creating && (
-        <Modal title="New trip" onClose={() => setCreating(false)}>
+        <Modal title="New trip" onClose={() => setCreating(false)} wide>
           <TripForm
             onCancel={() => setCreating(false)}
             onSubmit={async (input) => {
               const t = await addTrip(input);
-              router.push(`/trips/${t.id}`);
+              router.push(`/trips/${t.id}?add=1`);
             }}
           />
         </Modal>

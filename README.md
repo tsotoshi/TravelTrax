@@ -15,7 +15,7 @@ npm run dev        # http://localhost:3000
 |---------------|---------|
 | `/login`      | Email + password sign in / sign up (Supabase Auth) |
 | `/`           | Dashboard: cash, points and trip totals, spending by year (click a bar to filter), by category, points by program, trip cards with a year filter, new trip, export |
-| `/trips/[id]` | Trip detail: totals, add expense (inline on desktop, bottom sheet on phone), category breakdown with entries, points by program, edit/delete trip and entries, import/export |
+| `/trips/[id]` | Trip detail: totals, guided **Add expense** flow (category → cash / points / both → dates for flights & hotel, with "use trip dates" → amounts → review), "Next up" prompts for flights and hotel, tap any entry to edit, points by program, import/export |
 | `/import`     | CSV/XLSX import: pick file and sheet → map columns → preview, exclude rows → import into one trip or split by a trip-name column |
 
 ## Database
@@ -23,7 +23,13 @@ npm run dev        # http://localhost:3000
 Defined in [`supabase/schema.sql`](supabase/schema.sql).
 
 - **trips**: `id, user_id, name, destination, start_date, end_date, notes, created_at`
-- **expenses**: `id, user_id, trip_id → trips (cascade delete), category, description, amount (USD), points, program, expense_date, entry_type, created_at`
+- **expenses**: `id, user_id, trip_id → trips (cascade delete), category, description, amount (USD), points, program, expense_date, end_date (hotel check-out), entry_type, created_at`
+
+Categories (V1): Flights, Hotel, Transportation, Activities & events, Food, shopping & other. Older `food` / `shopping` rows are shown as "Food, shopping & other". Flights are saved as a departing and a return entry. For V1, one set of flights and one hotel per trip.
+
+Existing databases: run `supabase/migrations/002_expense_end_date.sql` once.
+
+Destination search uses OpenStreetMap place data from photon.komoot.io (no API key).
 
 Row-level security restricts each user to rows where `user_id = auth.uid()`. Expenses can only be attached to the user's own trips.
 

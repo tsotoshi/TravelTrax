@@ -2,15 +2,16 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { AddExpenseWizard } from "@/components/AddExpenseWizard";
 import { ExpenseForm } from "@/components/ExpenseForm";
 import { Icon } from "@/components/Icon";
 import { TripForm } from "@/components/TripForm";
-import { BarList, CategoryIcon, EmptyState, ExportMenu, Modal, Stat } from "@/components/ui";
+import { BarList, CategoryIcon, EmptyState, ExportMenu, Modal } from "@/components/ui";
 import { summarize, type CategorySummary } from "@/lib/calc";
-import { fmtRange, fmtShortDate, nights, pts, usd } from "@/lib/format";
+import { compact, fmtRange, fmtShortDate, nights, pts, usd, usdShort } from "@/lib/format";
 import { useStore } from "@/lib/store";
-import { CATEGORY_MAP, ENTRY_TYPE_MAP, type Expense } from "@/lib/types";
+import { CATEGORY_MAP, ENTRY_TYPE_MAP, type Category, type Expense } from "@/lib/types";
 
 export default function TripPage() {
   const { id } = useParams<{ id: string }>();
@@ -18,14 +19,22 @@ export default function TripPage() {
   const { trips, expenses, ready, updateTrip, deleteTrip, addExpenses, updateExpense, deleteExpense } = useStore();
   const [editingTrip, setEditingTrip] = useState(false);
   const [editing, setEditing] = useState<Expense | null>(null);
-  const [adding, setAdding] = useState(false);
+  const [wizard, setWizard] = useState<{ category?: Category } | null>(null);
+
+  // Opened right after creating a trip: jump straight into the guided flow.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("add") === "1") {
+      setWizard({});
+      router.replace(`/trips/${id}`);
+    }
+  }, [id, router]);
 
   const trip = trips.find((t) => t.id === id);
   const list = useMemo(() => expenses.filter((e) => e.trip_id === id), [expenses, id]);
   const s = useMemo(() => summarize(list), [list]);
   const programs = useMemo(() => [...new Set(expenses.map((e) => e.program).filter(Boolean) as string[])], [expenses]);
 
-  if (!ready) return <div className="h-40 animate-pulse rounded-2xl bg-zinc-200 dark:bg-zinc-800" />;
+  if (!ready) return <div className="h-48 animate-pulse rounded-3xl bg-zinc-200 dark:bg-zinc-800" />;
   if (!trip)
     return (
       <EmptyState icon="map" title="Trip not found">
@@ -33,20 +42,27 @@ export default function TripPage() {
       </EmptyState>
     );
 
+  const n = nights(trip.start_date, trip.end_date);
+  const missing = (["flights", "lodging"] as const).filter((c) => !list.some((e) => e.category === c));
+
   const onDeleteExpense = async (e: Expense) => {
-    if (confirm(`Delete "${e.description || CATEGORY_MAP[e.category].label}"?`)) await deleteExpense(e.id);
+    if (!confirm(`Delete "${e.description || CATEGORY_MAP[e.category].label}"?`)) return;
+    await deleteExpense(e.id);
+    setEditing(null);
   };
 
   return (
-    <div className="space-y-6 pb-20 lg:pb-0">
-      <div>
-        <Link href="/" className="mb-3 inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200">
-          <Icon name="back" className="size-3.5" /> All trips
-        </Link>
-        <div className="flex flex-wrap items-start justify-between gap-3">
+    <div className="space-y-6 pb-24 lg:pb-0">
+      <Link href="/" className="inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200">
+        <Icon name="back" className="size-3.5" /> All trips
+      </Link>
+
+      {/* Hero */}
+      <section className="hero p-5 sm:p-7">
+        <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h1 className="text-2xl font-semibold tracking-tight">{trip.name}</h1>
-            <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-zinc-500">
+            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{trip.name}</h1>
+            <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-sm text-white/80">
               {trip.destination && (
                 <span className="flex items-center gap-1">
                   <Icon name="pin" className="size-3.5" /> {trip.destination}
@@ -54,60 +70,57 @@ export default function TripPage() {
               )}
               <span className="flex items-center gap-1">
                 <Icon name="calendar" className="size-3.5" /> {fmtRange(trip.start_date, trip.end_date)}
-                {nights(trip.start_date, trip.end_date) > 0 && ` · ${nights(trip.start_date, trip.end_date)} nights`}
+                {n > 0 && ` · ${n} nights`}
               </span>
             </div>
-            {trip.notes && <p className="mt-2 max-w-2xl text-sm whitespace-pre-line text-zinc-600 dark:text-zinc-400">{trip.notes}</p>}
           </div>
-          <div className="flex gap-2">
-            <Link href={`/import?trip=${trip.id}`} className="btn btn-secondary" title="Import expenses">
+          <div className="flex shrink-0 gap-1.5">
+            <Link href={`/import?trip=${trip.id}`} className="btn btn-glass size-10 px-0" title="Import expenses" aria-label="Import expenses">
               <Icon name="upload" />
-              <span className="hidden sm:inline">Import</span>
             </Link>
-            <ExportMenu filename={slug(trip.name)} trips={[trip]} expenses={list} />
-            <button className="btn btn-secondary" onClick={() => setEditingTrip(true)} title="Edit trip">
+            <ExportMenu filename={slug(trip.name)} trips={[trip]} expenses={list} buttonClass="btn btn-glass size-10 px-0" iconOnly />
+            <button className="btn btn-glass size-10 px-0" onClick={() => setEditingTrip(true)} title="Edit trip" aria-label="Edit trip">
               <Icon name="pencil" />
-              <span className="hidden sm:inline">Edit</span>
-            </button>
-            <button
-              className="btn btn-secondary btn-danger"
-              title="Delete trip"
-              onClick={async () => {
-                if (!confirm(`Delete "${trip.name}" and all ${list.length} expenses? This can't be undone.`)) return;
-                await deleteTrip(trip.id);
-                router.push("/");
-              }}
-            >
-              <Icon name="trash" />
             </button>
           </div>
         </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
-        <Stat icon="wallet" label="Cash spent" value={usd(s.cash, true)} sub="USD" />
-        <Stat icon="star" label="Points redeemed" value={pts(s.points)} sub={`${s.programs.length} program${s.programs.length === 1 ? "" : "s"}`} />
-        <div className="col-span-2 lg:col-span-1">
-          <Stat icon="calendar" label="Per day" value={usd(s.cash / Math.max(nights(trip.start_date, trip.end_date) + 1, 1))} sub={`${list.length} entries`} />
+        <div className="mt-6 grid grid-cols-3 gap-3">
+          <HeroStat label="Cash" value={usdShort(s.cash)} />
+          <HeroStat label="Points" value={compact(s.points)} />
+          <HeroStat label="Per day" value={usdShort(s.cash / Math.max(n + 1, 1))} />
         </div>
-      </div>
+        {trip.notes && <p className="mt-4 text-sm whitespace-pre-line text-white/80">{trip.notes}</p>}
+      </section>
+
+      <button className="btn btn-primary hidden h-12 w-full text-base lg:flex" onClick={() => setWizard({})}>
+        <Icon name="plus" className="size-5" /> Add expense
+      </button>
+
+      {missing.length > 0 && (
+        <section>
+          <h2 className="mb-2 text-sm font-semibold text-zinc-500">Next up</h2>
+          <div className="grid grid-cols-2 gap-3">
+            {missing.map((c) => (
+              <button key={c} className="tile flex-row items-center gap-3 text-left" onClick={() => setWizard({ category: c })}>
+                <CategoryIcon category={c} />
+                <span>
+                  <span className="block font-semibold">Add {c === "flights" ? "flights" : "hotel"}</span>
+                  <span className="text-xs text-zinc-500">{c === "flights" ? "Depart & return" : "Your stay"}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="space-y-4">
-          {/* Fast entry: inline on desktop, button + sheet on mobile */}
-          <section className="card hidden p-5 lg:block">
-            <h2 className="mb-4 text-sm font-semibold">Add expense</h2>
-            <ExpenseForm compact tripId={trip.id} programs={programs} onSubmit={(input) => addExpenses([input])} />
-          </section>
-
           {s.categories.length === 0 ? (
             <EmptyState icon="wallet" title="No expenses yet">
-              Add a transaction, a category total, or import a spreadsheet.
+              Tap <b>Add expense</b> and we&apos;ll walk you through it.
             </EmptyState>
           ) : (
-            s.categories.map((c) => (
-              <CategorySection key={c.category} c={c} counted={s.counted} onEdit={setEditing} onDelete={onDeleteExpense} />
-            ))
+            s.categories.map((c) => <CategorySection key={c.category} c={c} counted={s.counted} onEdit={setEditing} />)
           )}
         </div>
 
@@ -132,34 +145,51 @@ export default function TripPage() {
           </section>
           <section className="card p-5">
             <h2 className="mb-4 text-sm font-semibold">Points by program</h2>
-            <BarList
-              empty="No points redeemed"
-              items={s.programs.map((p) => ({ key: p.program, label: p.program, value: p.points, display: pts(p.points) }))}
-            />
+            <BarList empty="No points redeemed" items={s.programs.map((p) => ({ key: p.program, label: p.program, value: p.points, display: pts(p.points) }))} />
           </section>
+          <button
+            className="btn btn-ghost w-full text-red-600 dark:text-red-400"
+            onClick={async () => {
+              if (!confirm(`Delete "${trip.name}" and all ${list.length} expenses? This can't be undone.`)) return;
+              await deleteTrip(trip.id);
+              router.push("/");
+            }}
+          >
+            <Icon name="trash" /> Delete trip
+          </button>
         </aside>
       </div>
 
       <button
-        className="btn btn-primary fixed right-4 bottom-[max(1.25rem,env(safe-area-inset-bottom))] z-30 h-14 rounded-2xl px-5 shadow-lg lg:hidden"
-        onClick={() => setAdding(true)}
+        className="btn btn-primary fixed inset-x-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-30 h-14 text-base shadow-xl shadow-indigo-500/25 lg:hidden"
+        onClick={() => setWizard({})}
       >
         <Icon name="plus" className="size-5" /> Add expense
       </button>
 
-      {adding && (
-        <Modal title="Add expense" onClose={() => setAdding(false)}>
-          <ExpenseForm tripId={trip.id} programs={programs} onSubmit={(input) => addExpenses([input])} onCancel={() => setAdding(false)} />
-          <p className="mt-3 text-center text-xs text-zinc-500">The form stays open so you can add several in a row.</p>
+      {wizard && (
+        <Modal title="Add expense" onClose={() => setWizard(null)} wide>
+          <AddExpenseWizard
+            trip={trip}
+            tripExpenses={list}
+            programs={programs}
+            initialCategory={wizard.category}
+            onSave={addExpenses}
+            onEdit={(e) => {
+              setWizard(null);
+              setEditing(e);
+            }}
+            onClose={() => setWizard(null)}
+          />
         </Modal>
       )}
       {editing && (
         <Modal title="Edit expense" onClose={() => setEditing(null)}>
           <ExpenseForm
-            tripId={trip.id}
             expense={editing}
             programs={programs}
             onCancel={() => setEditing(null)}
+            onDelete={() => onDeleteExpense(editing)}
             onSubmit={async (input) => {
               await updateExpense(editing.id, input);
               setEditing(null);
@@ -168,7 +198,7 @@ export default function TripPage() {
         </Modal>
       )}
       {editingTrip && (
-        <Modal title="Edit trip" onClose={() => setEditingTrip(false)}>
+        <Modal title="Edit trip" onClose={() => setEditingTrip(false)} wide>
           <TripForm
             trip={trip}
             onCancel={() => setEditingTrip(false)}
@@ -183,34 +213,34 @@ export default function TripPage() {
   );
 }
 
-function CategorySection({
-  c,
-  counted,
-  onEdit,
-  onDelete,
-}: {
-  c: CategorySummary;
-  counted: Set<string>;
-  onEdit: (e: Expense) => void;
-  onDelete: (e: Expense) => void;
-}) {
+function HeroStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl bg-white/12 px-3 py-2.5 backdrop-blur-sm">
+      <div className="text-[11px] font-medium tracking-wide text-white/70 uppercase">{label}</div>
+      <div className="mt-0.5 truncate text-lg font-semibold tabular-nums sm:text-xl">{value}</div>
+    </div>
+  );
+}
+
+function entryWhen(e: Expense) {
+  if (e.expense_date && e.end_date) return `${fmtRange(e.expense_date, e.end_date)} · ${nights(e.expense_date, e.end_date)} nights`;
+  return fmtShortDate(e.expense_date);
+}
+
+function CategorySection({ c, counted, onEdit }: { c: CategorySummary; counted: Set<string>; onEdit: (e: Expense) => void }) {
   const meta = CATEGORY_MAP[c.category];
   const unitemized = c.totalCash - c.itemizedCash - c.extraCash;
   return (
     <section className="card overflow-hidden">
-      <header className="flex items-center gap-3 border-b border-zinc-100 px-4 py-3 dark:border-zinc-800">
+      <header className="flex items-center gap-3 px-4 py-3.5">
         <CategoryIcon category={c.category} />
         <div className="min-w-0 flex-1">
           <h3 className="font-semibold">{meta.label}</h3>
-          <p className="text-xs text-zinc-500">
-            {c.mode === "total"
-              ? c.itemizedCash + c.extraCash > 0
-                ? `Category total · ${usd(c.itemizedCash + c.extraCash, true)} itemized${unitemized > 0 ? `, ${usd(unitemized, true)} unitemized` : ""}`
-                : "Category total"
-              : c.extraCash > 0
-                ? `${usd(c.itemizedCash, true)} itemized + ${usd(c.extraCash, true)} unitemized`
-                : `${c.entries.length} transaction${c.entries.length === 1 ? "" : "s"}`}
-          </p>
+          {c.mode === "total" && c.itemizedCash + c.extraCash > 0 && (
+            <p className="text-xs text-zinc-500">
+              Trip total · {usd(c.itemizedCash + c.extraCash, true)} itemized{unitemized > 0 ? `, ${usd(unitemized, true)} not itemized` : ""}
+            </p>
+          )}
         </div>
         <div className="text-right">
           <div className="font-semibold tabular-nums">{usd(c.cash, true)}</div>
@@ -220,46 +250,33 @@ function CategorySection({
       {c.overflow && (
         <div className="flex items-center gap-2 bg-amber-50 px-4 py-2 text-xs text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
           <Icon name="alert" className="size-3.5 shrink-0" />
-          Itemized entries exceed the category total. Raise the total, or change the extra spending to “Unitemized extra” and remove the total.
+          Itemized entries add up to more than the trip total. Edit the total to fix this.
         </div>
       )}
-      <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
+      <ul className="divide-y divide-zinc-100 border-t border-zinc-100 dark:divide-zinc-800 dark:border-zinc-800">
         {c.entries.map((e) => {
           const included = !counted.has(e.id);
           return (
-            <li key={e.id} className="group flex items-center gap-3 px-4 py-2.5">
-              <button className="min-w-0 flex-1 text-left" onClick={() => onEdit(e)}>
-                <div className="flex items-center gap-2">
-                  <span className={`truncate text-sm ${included ? "text-zinc-500" : ""}`}>{e.description || (e.entry_type === "category_total" ? `All ${meta.label.toLowerCase()}` : meta.label)}</span>
-                  {e.entry_type !== "transaction" && (
-                    <span
-                      className={`shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-medium tracking-wide uppercase ${
-                        e.entry_type === "category_total"
-                          ? "bg-[var(--accent-soft)] text-[var(--accent)]"
-                          : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
-                      }`}
-                    >
-                      {ENTRY_TYPE_MAP[e.entry_type].label}
-                    </span>
-                  )}
+            <li key={e.id}>
+              <button className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-zinc-50 dark:hover:bg-zinc-800/50" onClick={() => onEdit(e)}>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className={`truncate text-sm font-medium ${included ? "text-zinc-500" : ""}`}>{e.description || meta.label}</span>
+                    {e.entry_type !== "transaction" && (
+                      <span className="shrink-0 rounded-md bg-[var(--accent-soft)] px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-[var(--accent)] uppercase">
+                        {e.entry_type === "category_total" ? "Trip total" : ENTRY_TYPE_MAP[e.entry_type].label}
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-0.5 text-xs text-zinc-500">
+                    {[entryWhen(e), e.points ? `${pts(e.points)} pts · ${e.program ?? "—"}` : null, included ? "included in trip total" : null].filter(Boolean).join(" · ")}
+                  </div>
                 </div>
-                <div className="mt-0.5 text-xs text-zinc-500">
-                  {[fmtShortDate(e.expense_date), e.points ? `${pts(e.points)} pts · ${e.program ?? "—"}` : null, included ? "included in category total" : null]
-                    .filter(Boolean)
-                    .join(" · ")}
-                </div>
+                <span className={`text-sm tabular-nums ${included ? "text-zinc-400 line-through" : "font-semibold"}`}>
+                  {e.amount > 0 || !e.points ? usd(e.amount, true) : ""}
+                </span>
+                <Icon name="pencil" className="size-3.5 shrink-0 text-zinc-300 dark:text-zinc-600" />
               </button>
-              <span className={`text-sm tabular-nums ${included ? "text-zinc-400 line-through decoration-zinc-300 dark:decoration-zinc-600" : "font-medium"}`}>
-                {usd(e.amount, true)}
-              </span>
-              <div className="flex opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100 sm:focus-within:opacity-100">
-                <button className="btn btn-ghost size-8 px-0" onClick={() => onEdit(e)} aria-label="Edit">
-                  <Icon name="pencil" className="size-3.5" />
-                </button>
-                <button className="btn btn-danger size-8 px-0" onClick={() => onDelete(e)} aria-label="Delete">
-                  <Icon name="trash" className="size-3.5" />
-                </button>
-              </div>
             </li>
           );
         })}

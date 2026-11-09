@@ -7,7 +7,7 @@ import { exportCsv, exportXlsx } from "@/lib/spreadsheet";
 import type { Expense, Trip } from "@/lib/types";
 import { Icon } from "./Icon";
 
-export function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+export function Modal({ title, onClose, children, wide }: { title: string; onClose: () => void; children: ReactNode; wide?: boolean }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     document.addEventListener("keydown", onKey);
@@ -20,7 +20,7 @@ export function Modal({ title, onClose, children }: { title: string; onClose: ()
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label={title}>
       <div className="absolute inset-0 bg-zinc-950/40 backdrop-blur-[2px]" onClick={onClose} />
-      <div className="relative max-h-[92dvh] w-full overflow-y-auto rounded-t-3xl bg-white p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-xl sm:max-w-lg sm:rounded-3xl dark:bg-zinc-900">
+      <div className={`relative max-h-[92dvh] w-full overflow-y-auto rounded-t-3xl bg-white p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-2xl sm:rounded-3xl dark:bg-zinc-900 ${wide ? "sm:max-w-2xl" : "sm:max-w-lg"}`}>
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold">{title}</h2>
           <button className="btn btn-ghost -mr-2 size-9 px-0" onClick={onClose} aria-label="Close">
@@ -144,7 +144,7 @@ export function CategoryStrip({ parts }: { parts: { category: Category; cash: nu
   );
 }
 
-export function ExportMenu({ filename, trips, expenses }: { filename: string; trips: Trip[]; expenses: Expense[] }) {
+export function ExportMenu({ filename, trips, expenses, buttonClass = "btn btn-secondary", iconOnly }: { filename: string; trips: Trip[]; expenses: Expense[]; buttonClass?: string; iconOnly?: boolean }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   useEffect(() => {
@@ -156,7 +156,7 @@ export function ExportMenu({ filename, trips, expenses }: { filename: string; tr
   return (
     <div className="relative">
       <button
-        className="btn btn-secondary"
+        className={buttonClass}
         disabled={busy}
         onClick={(e) => {
           e.stopPropagation();
@@ -164,10 +164,10 @@ export function ExportMenu({ filename, trips, expenses }: { filename: string; tr
         }}
       >
         <Icon name="download" />
-        <span className="hidden sm:inline">Export</span>
+        {!iconOnly && <span className="hidden sm:inline">Export</span>}
       </button>
       {open && (
-        <div className="card absolute right-0 z-20 mt-1.5 w-44 p-1 shadow-lg">
+        <div className="card absolute right-0 z-20 mt-1.5 w-44 p-1 text-zinc-900 shadow-xl dark:text-zinc-100">
           <button className="menu-item" onClick={() => exportCsv(filename, trips, expenses)}>
             CSV (.csv)
           </button>

@@ -23,6 +23,7 @@ create table if not exists public.expenses (
   points       bigint not null default 0 check (points >= 0),
   program      text,
   expense_date date,
+  end_date     date,          -- e.g. hotel check-out
   -- transaction:    one purchase (e.g. a $45 dinner)
   -- category_total: the complete total for the category; transactions in that
   --                 category are treated as already included (not added again)
@@ -31,6 +32,9 @@ create table if not exists public.expenses (
                  check (entry_type in ('transaction', 'category_total', 'additional')),
   created_at   timestamptz not null default now()
 );
+
+-- For databases created before end_date existed:
+alter table public.expenses add column if not exists end_date date;
 
 create index if not exists trips_user_start_idx on public.trips (user_id, start_date desc);
 create index if not exists expenses_trip_idx on public.expenses (trip_id);

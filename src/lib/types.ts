@@ -1,11 +1,10 @@
-export type Category =
-  | "flights"
-  | "lodging"
-  | "food"
-  | "transport"
-  | "activities"
-  | "shopping"
-  | "other";
+/** V1 categories. Legacy "food" / "shopping" values are folded into "other". */
+export type Category = "flights" | "lodging" | "transport" | "activities" | "other";
+
+const CATEGORY_KEYS = ["flights", "lodging", "transport", "activities", "other"];
+export function normCategory(c: string): Category {
+  return (CATEGORY_KEYS.includes(c) ? c : "other") as Category;
+}
 
 export type EntryType = "transaction" | "category_total" | "additional";
 
@@ -28,6 +27,7 @@ export interface Expense {
   points: number;
   program: string | null;
   expense_date: string | null; // YYYY-MM-DD
+  end_date: string | null; // YYYY-MM-DD, e.g. hotel check-out
   entry_type: EntryType;
   created_at: string;
 }
@@ -46,12 +46,10 @@ export type IconName =
 
 export const CATEGORIES: { key: Category; label: string; short: string; color: string; icon: IconName }[] = [
   { key: "flights", label: "Flights", short: "Flights", color: "#0ea5e9", icon: "plane" },
-  { key: "lodging", label: "Hotels & lodging", short: "Hotels", color: "#6366f1", icon: "bed" },
-  { key: "food", label: "Food & drinks", short: "Food", color: "#f59e0b", icon: "utensils" },
+  { key: "lodging", label: "Hotel", short: "Hotel", color: "#6366f1", icon: "bed" },
   { key: "transport", label: "Transportation", short: "Transport", color: "#10b981", icon: "car" },
-  { key: "activities", label: "Events & activities", short: "Events", color: "#f43f5e", icon: "ticket" },
-  { key: "shopping", label: "Shopping", short: "Shopping", color: "#d946ef", icon: "bag" },
-  { key: "other", label: "Other", short: "Other", color: "#64748b", icon: "dots" },
+  { key: "activities", label: "Activities & events", short: "Activities", color: "#f43f5e", icon: "ticket" },
+  { key: "other", label: "Food, shopping & other", short: "Food & other", color: "#f59e0b", icon: "bag" },
 ];
 
 export const CATEGORY_MAP = Object.fromEntries(CATEGORIES.map((c) => [c.key, c])) as Record<
@@ -85,19 +83,19 @@ export const ENTRY_TYPE_MAP = Object.fromEntries(ENTRY_TYPES.map((t) => [t.key, 
   (typeof ENTRY_TYPES)[number]
 >;
 
-export const COMMON_PROGRAMS = [
-  "Marriott Bonvoy",
-  "Hilton Honors",
-  "World of Hyatt",
-  "IHG One Rewards",
-  "Aeroplan",
+export const AIRLINE_PROGRAMS = [
   "United MileagePlus",
   "American AAdvantage",
   "Delta SkyMiles",
+  "Aeroplan",
   "Alaska Mileage Plan",
   "British Airways Avios",
+];
+export const HOTEL_PROGRAMS = ["Marriott Bonvoy", "Hilton Honors", "World of Hyatt", "IHG One Rewards"];
+export const BANK_PROGRAMS = [
   "Chase Ultimate Rewards",
   "Amex Membership Rewards",
   "Capital One Miles",
   "Citi ThankYou Points",
 ];
+export const COMMON_PROGRAMS = [...HOTEL_PROGRAMS, ...AIRLINE_PROGRAMS, ...BANK_PROGRAMS];

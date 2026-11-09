@@ -7,6 +7,16 @@ export function usd(n: number, exact = false) {
   return exact || !Number.isInteger(Math.round(n * 100) / 100) ? usd2.format(n) : usd0.format(n);
 }
 
+const compactFmt = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 });
+/** Short numbers for tight spaces: 1.2K, 414K, 1.5M. */
+export function compact(n: number) {
+  return n < 10_000 ? num.format(Math.round(n)) : compactFmt.format(n);
+}
+/** Whole dollars, compact above $100K. */
+export function usdShort(n: number) {
+  return n < 100_000 ? usd0.format(Math.round(n)) : "$" + compactFmt.format(n);
+}
+
 export function pts(n: number) {
   return num.format(n);
 }

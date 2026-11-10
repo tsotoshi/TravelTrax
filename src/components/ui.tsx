@@ -114,7 +114,7 @@ export function YearChart({
             key={d.year}
             onClick={() => onSelect(selected === d.year ? "all" : d.year)}
             className="group flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1.5"
-            title={`${d.year}: ${usd(d.cash)} · ${pts(d.points)} pts`}
+            title={`${d.year}: ${usd(Math.round(d.cash))} · ${pts(d.points)} pts`}
           >
             <span className="text-[11px] font-medium tabular-nums text-zinc-600 dark:text-zinc-300">{usd(Math.round(d.cash))}</span>
             <div
@@ -126,6 +126,33 @@ export function YearChart({
         );
       })}
     </div>
+  );
+}
+
+/** A light box with a small label over a large number (trip and category totals). */
+export function StatBox({ label, value, note }: { label: string; value: string; note?: string | null }) {
+  return (
+    <div className="min-w-0 rounded-2xl bg-zinc-100/80 px-3.5 py-2.5 dark:bg-zinc-800/70">
+      <div className="truncate text-xs text-zinc-500 dark:text-zinc-400">{label}</div>
+      <div className="mt-0.5 truncate text-xl font-semibold tracking-tight tabular-nums">{value}</div>
+      {note && <div className="truncate text-[11px] text-zinc-500 dark:text-zinc-400">{note}</div>}
+    </div>
+  );
+}
+
+/** Key for CategoryStrip: a colored dot and short name per category with spending. */
+export function CategoryLegend({ parts }: { parts: { category: Category; cash: number }[] }) {
+  const shown = parts.filter((p) => p.cash > 0);
+  if (!shown.length) return null;
+  return (
+    <ul className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-zinc-500">
+      {shown.map((p) => (
+        <li key={p.category} className="flex items-center gap-1">
+          <span className="size-2 rounded-full" style={{ backgroundColor: CATEGORY_MAP[p.category].color }} />
+          {CATEGORY_MAP[p.category].short}
+        </li>
+      ))}
+    </ul>
   );
 }
 

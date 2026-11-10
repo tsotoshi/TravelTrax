@@ -23,8 +23,10 @@ export interface Expense {
   trip_id: string;
   category: Category;
   description: string;
-  amount: number; // USD
+  amount: number; // USD paid in cash (excluding fees)
   points: number;
+  fees: number; // USD taxes & fees paid in cash, e.g. on an award booking
+  baggage: number; // USD checked-bag fees (flights)
   program: string | null;
   expense_date: string | null; // YYYY-MM-DD
   end_date: string | null; // YYYY-MM-DD, e.g. hotel check-out
@@ -83,19 +85,26 @@ export const ENTRY_TYPE_MAP = Object.fromEntries(ENTRY_TYPES.map((t) => [t.key, 
   (typeof ENTRY_TYPES)[number]
 >;
 
-export const AIRLINE_PROGRAMS = [
-  "United MileagePlus",
-  "American AAdvantage",
-  "Delta SkyMiles",
-  "Aeroplan",
-  "Alaska Mileage Plan",
-  "British Airways Avios",
-];
-export const HOTEL_PROGRAMS = ["Marriott Bonvoy", "Hilton Honors", "World of Hyatt", "IHG One Rewards"];
+/** The 20 most common programs, grouped for the program picker. */
 export const BANK_PROGRAMS = [
   "Chase Ultimate Rewards",
   "Amex Membership Rewards",
   "Capital One Miles",
   "Citi ThankYou Points",
+  "Bilt Rewards",
 ];
-export const COMMON_PROGRAMS = [...HOTEL_PROGRAMS, ...AIRLINE_PROGRAMS, ...BANK_PROGRAMS];
+export const AIRLINE_PROGRAMS = [
+  "United MileagePlus",
+  "Delta SkyMiles",
+  "American AAdvantage",
+  "Atmos Rewards (Alaska)",
+  "JetBlue TrueBlue",
+  "Southwest Rapid Rewards",
+  "Aeroplan",
+  "British Airways Avios",
+  "Flying Blue",
+  "Virgin Atlantic Flying Club",
+  "Singapore KrisFlyer",
+];
+export const HOTEL_PROGRAMS = ["Marriott Bonvoy", "Hilton Honors", "World of Hyatt", "IHG One Rewards"];
+export const COMMON_PROGRAMS = [...BANK_PROGRAMS, ...AIRLINE_PROGRAMS, ...HOTEL_PROGRAMS];

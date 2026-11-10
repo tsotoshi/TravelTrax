@@ -3,14 +3,19 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  --accent: #4f46e5;
-  --accent-soft: #4f46e51a;
+  /* Softened violet: lower saturation than the original indigo #4f46e5. */
+  --accent: hsl(246 45% 56%);
+  --accent-soft: hsl(246 45% 56% / 0.1);
+  --hero-from: hsl(244 34% 44%);
+  --hero-to: hsl(258 30% 60%);
   color-scheme: light;
   font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 .dark {
-  --accent: #818cf8;
-  --accent-soft: #818cf826;
+  --accent: hsl(246 60% 78%);
+  --accent-soft: hsl(246 60% 78% / 0.14);
+  --hero-from: hsl(244 26% 26%);
+  --hero-to: hsl(258 22% 36%);
   color-scheme: dark;
 }
 
@@ -35,7 +40,10 @@ body {
     @apply rounded-3xl bg-white shadow-[0_1px_2px_rgb(0_0_0/0.04),0_12px_32px_-16px_rgb(0_0_0/0.12)] ring-1 ring-zinc-900/5 dark:bg-zinc-900 dark:shadow-none dark:ring-white/10;
   }
   .hero {
-    @apply relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-500 text-white shadow-xl shadow-indigo-500/20 dark:from-indigo-700 dark:via-violet-700 dark:to-fuchsia-700 dark:shadow-none;
+    @apply relative overflow-hidden rounded-3xl text-white shadow-[0_1px_2px_rgb(0_0_0/0.06),0_16px_40px_-20px_rgb(30_27_60/0.45)] ring-1 ring-white/10 dark:shadow-none;
+    background:
+      radial-gradient(120% 90% at 100% 0%, rgb(255 255 255 / 0.16), transparent 55%),
+      linear-gradient(135deg, var(--hero-from), var(--hero-to));
   }
   .tile {
     @apply relative flex w-full flex-col items-start gap-3 rounded-2xl bg-white p-4 text-left ring-1 ring-zinc-900/8 transition hover:ring-[var(--accent)] active:scale-[0.98] dark:bg-zinc-900 dark:ring-white/10;
@@ -47,7 +55,7 @@ body {
     @apply inline-flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-2xl px-4 text-sm font-semibold whitespace-nowrap transition select-none active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40;
   }
   .btn-primary {
-    @apply bg-[var(--accent)] text-white shadow-sm shadow-indigo-500/20 hover:brightness-110 dark:text-zinc-950;
+    @apply bg-[var(--accent)] text-white shadow-sm shadow-zinc-900/10 hover:brightness-110 dark:text-zinc-950;
   }
   .btn-secondary {
     @apply bg-white ring-1 ring-zinc-900/10 hover:bg-zinc-50 dark:bg-zinc-900 dark:ring-white/10 dark:hover:bg-zinc-800;

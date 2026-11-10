@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Icon } from "./Icon";
 
 const iso = (d: Date) =>
@@ -21,14 +21,26 @@ export function DateRangePicker({
   end,
   onChange,
   single,
+  defaultMonth,
 }: {
   start: string | null;
   end: string | null;
   onChange: (start: string | null, end: string | null) => void;
   single?: boolean;
+  /** YYYY-MM-DD whose month to show when nothing is picked (e.g. the trip start). */
+  defaultMonth?: string;
 }) {
-  const initial = start ? fromIso(start) : new Date();
+  const initial = start ? fromIso(start) : defaultMonth ? fromIso(defaultMonth) : new Date();
   const [view, setView] = useState(new Date(initial.getFullYear(), initial.getMonth(), 1));
+  // Jump to a start date picked outside the calendar (e.g. "Use trip dates") if it isn't visible.
+  useEffect(() => {
+    if (!start) return;
+    const d = fromIso(start);
+    setView((v) => {
+      const months = (d.getFullYear() - v.getFullYear()) * 12 + d.getMonth() - v.getMonth();
+      return months === 0 || months === 1 ? v : new Date(d.getFullYear(), d.getMonth(), 1);
+    });
+  }, [start]);
   const [hover, setHover] = useState<string | null>(null);
   const choosingEnd = !single && !!start && !end;
 

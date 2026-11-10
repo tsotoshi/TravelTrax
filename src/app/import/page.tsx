@@ -20,6 +20,8 @@ type FieldKey =
   | "description"
   | "amount"
   | "points"
+  | "fees"
+  | "baggage"
   | "program"
   | "date"
   | "end_date"
@@ -35,6 +37,8 @@ const FIELDS: { key: FieldKey; label: string; guess: RegExp; group: "expense" | 
   { key: "entry_type", label: "Entry type", guess: /entry type|^type$|^kind$/, group: "expense" },
   { key: "category", label: "Category", guess: /categ/, group: "expense" },
   { key: "points", label: "Points redeemed", guess: /points|miles|\bpts\b/, group: "expense" },
+  { key: "baggage", label: "Baggage (USD)", guess: /bag/, group: "expense" },
+  { key: "fees", label: "Taxes & fees (USD)", guess: /fee|tax/, group: "expense" },
   { key: "program", label: "Loyalty program", guess: /program|loyalty|rewards/, group: "expense" },
   { key: "end_date", label: "End date (hotel check-out)", guess: /^end date$|check.?out/, group: "expense" },
   { key: "date", label: "Expense date", guess: /date|posted|^when$/, group: "expense" },
@@ -55,6 +59,8 @@ interface Parsed {
   description: string;
   amount: number;
   points: number;
+  fees: number;
+  baggage: number;
   program: string | null;
   date: string | null;
   endDate: string | null;
@@ -150,10 +156,18 @@ function Importer() {
       const empty = row.every((c) => str(c) === "");
       const amountRaw = parseNumber(get(row, "amount"));
       const pointsRaw = parseNumber(get(row, "points"));
+      const feesRaw = parseNumber(get(row, "fees"));
+      const bagRaw = parseNumber(get(row, "baggage"));
       if (Number.isNaN(amountRaw)) errors.push("Invalid amount");
       else if ((amountRaw ?? 0) < 0) errors.push("Negative amount");
       if (Number.isNaN(pointsRaw)) errors.push("Invalid points");
       else if ((pointsRaw ?? 0) < 0) errors.push("Negative points");
+      if (Number.isNaN(feesRaw)) errors.push("Invalid fees");
+      else if ((feesRaw ?? 0) < 0) errors.push("Negative fees");
+      if (Number.isNaN(bagRaw)) errors.push("Invalid baggage");
+      else if ((bagRaw ?? 0) < 0) errors.push("Negative baggage");
+      const baggage = Number.isNaN(bagRaw) ? 0 : Math.round((bagRaw ?? 0) * 100) / 100;
+      const fees = Number.isNaN(feesRaw) ? 0 : Math.round((feesRaw ?? 0) * 100) / 100;
       const amount = Number.isNaN(amountRaw) ? 0 : Math.round((amountRaw ?? 0) * 100) / 100;
       const points = Number.isNaN(pointsRaw) ? 0 : Math.round(pointsRaw ?? 0);
       const date = parseDateCell(get(row, "date"));
@@ -176,12 +190,14 @@ function Importer() {
         description: str(get(row, "description")),
         amount,
         points,
+        fees,
+        baggage,
         program: str(get(row, "program")) || null,
         date: date ?? null,
         endDate: endDate ?? null,
         entryType: matchEntryType(str(get(row, "entry_type"))),
         errors,
-        empty: empty || (amount === 0 && points === 0 && !errors.some((e) => e.startsWith("Invalid"))),
+        empty: empty || (amount === 0 && points === 0 && fees === 0 && baggage === 0 && !errors.some((e) => e.startsWith("Invalid"))),
       };
     });
   }, [data, mapping, defaultCategory, targetTrip]);
@@ -221,6 +237,8 @@ function Importer() {
         description: p.description,
         amount: p.amount,
         points: p.points,
+        fees: p.fees,
+        baggage: p.baggage,
         program: p.program,
         expense_date: p.date,
         end_date: p.endDate,
@@ -238,7 +256,7 @@ function Importer() {
 
   const tripMapped = (mapping?.trip ?? -1) >= 0;
   const sortedTrips = [...trips].sort((a, b) => b.start_date.localeCompare(a.start_date));
-  const totalCash = selected.reduce((s, p) => s + p.amount, 0);
+  const totalCash = selected.reduce((s, p) => s + p.amount + p.fees + p.baggage, 0);
   const totalPts = selected.reduce((s, p) => s + p.points, 0);
 
   return (
@@ -401,6 +419,8 @@ function Importer() {
                     <th className="px-2 py-2 font-medium">Category</th>
                     <th className="px-2 py-2 font-medium">Description</th>
                     <th className="px-2 py-2 text-right font-medium">Cash</th>
+                    <th className="px-2 py-2 text-right font-medium">Fees</th>
+                    <th className="px-2 py-2 text-right font-medium">Baggage</th>
                     <th className="px-2 py-2 text-right font-medium">Points</th>
                     <th className="px-2 py-2 font-medium">Program</th>
                     <th className="px-2 py-2 font-medium">Type</th>
@@ -450,6 +470,8 @@ function Importer() {
                           {p.empty && <div className="text-xs">No amount or points — skipped</div>}
                         </td>
                         <td className="px-2 py-2 text-right tabular-nums">{p.amount ? usd(p.amount, true) : ""}</td>
+                        <td className="px-2 py-2 text-right tabular-nums">{p.fees ? usd(p.fees, true) : ""}</td>
+                        <td className="px-2 py-2 text-right tabular-nums">{p.baggage ? usd(p.baggage, true) : ""}</td>
                         <td className="px-2 py-2 text-right tabular-nums">{p.points ? pts(p.points) : ""}</td>
                         <td className="max-w-36 truncate px-2 py-2">{p.program ?? ""}</td>
                         <td className="px-2 py-2 whitespace-nowrap">{ENTRY_TYPE_MAP[p.entryType].label}</td>
@@ -472,7 +494,7 @@ function Importer() {
   );
 }
 
-const ORDER: FieldKey[] = ["date", "end_date", "category", "description", "amount", "points", "program", "entry_type"];
+const ORDER: FieldKey[] = ["date", "end_date", "category", "description", "amount", "points", "fees", "baggage", "program", "entry_type"];
 
 function MapSelect({
   label,

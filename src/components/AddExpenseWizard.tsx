@@ -2,12 +2,10 @@
 
 import { useState, type ReactNode } from "react";
 import { fmtRange, fmtShortDate, nights, pts, usd } from "@/lib/format";
+import { dollars, extrasNote } from "@/lib/calc";
 import {
-  AIRLINE_PROGRAMS,
-  BANK_PROGRAMS,
   CATEGORIES,
   CATEGORY_MAP,
-  HOTEL_PROGRAMS,
   type Category,
   type Expense,
   type ExpenseInput,
@@ -15,28 +13,37 @@ import {
 } from "@/lib/types";
 import { DateRangePicker } from "./DateRangePicker";
 import { Icon } from "./Icon";
+import { ProgramSelect } from "./ProgramSelect";
 
-type Pay = "cash" | "points" | "both";
-type Step = "category" | "existing" | "pay" | "dates" | "amounts" | "review";
+type Step = "category" | "dates" | "amounts" | "review";
 interface Money {
   cash: string;
   points: string;
+  fees: string;
+  baggage: string;
+  program: string;
 }
-const EMPTY: Money = { cash: "", points: "" };
+const EMPTY: Money = { cash: "", points: "", fees: "", baggage: "", program: "" };
+
+const isDated = (c: Category | null) => c === "flights" || c === "lodging";
+const entryStep = (c: Category): Step => (isDated(c) ? "dates" : "amounts");
+
+/** "Save & add another …" keeps the same category. */
+const ANOTHER_LABEL: Record<Category, string> = {
+  flights: "Save & add another flight",
+  lodging: "Save & add another hotel",
+  transport: "Save & add more transportation",
+  activities: "Save & add another activity",
+  other: "Save & add another purchase",
+};
 
 const num = (s: string) => {
   const n = Number(s.replace(/[,$\s]/g, ""));
   return Number.isFinite(n) && n > 0 ? n : 0;
 };
 
-const PAY_OPTIONS: { key: Pay; title: string; sub: string; icon: string }[] = [
-  { key: "cash", title: "Cash", sub: "Card or cash, in USD", icon: "wallet" },
-  { key: "points", title: "Points", sub: "Miles or loyalty points", icon: "star" },
-  { key: "both", title: "Cash + points", sub: "e.g. points plus taxes & fees", icon: "plus" },
-];
-
 /**
- * Guided "add expense" flow: what → how you paid → dates (flights/hotel) → amounts → review.
+ * Guided "add expense" flow: what → dates (flights/hotel) → amounts → review.
  */
 export function AddExpenseWizard({
   trip,
@@ -44,7 +51,6 @@ export function AddExpenseWizard({
   programs,
   initialCategory,
   onSave,
-  onEdit,
   onClose,
 }: {
   trip: Trip;
@@ -52,38 +58,30 @@ export function AddExpenseWizard({
   programs: string[];
   initialCategory?: Category;
   onSave: (inputs: ExpenseInput[]) => Promise<void>;
-  onEdit: (e: Expense) => void;
   onClose: () => void;
 }) {
   const [category, setCategory] = useState<Category | null>(initialCategory ?? null);
-  const [step, setStep] = useState<Step>(() => (initialCategory ? firstStepFor(initialCategory) : "category"));
-  const [pay, setPay] = useState<Pay | null>(null);
+  const [step, setStep] = useState<Step>(() => (initialCategory ? entryStep(initialCategory) : "category"));
   const [oneWay, setOneWay] = useState(false);
   const [start, setStart] = useState<string | null>(null);
   const [end, setEnd] = useState<string | null>(null);
   const [depart, setDepart] = useState<Money>(EMPTY);
   const [ret, setRet] = useState<Money>(EMPTY);
   const [single, setSingle] = useState<Money>(EMPTY);
-  const [program, setProgram] = useState("");
   const [description, setDescription] = useState("");
   const [isTotal, setIsTotal] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState<string | null>(null);
 
-  function firstStepFor(c: Category): Step {
-    const has = tripExpenses.some((e) => e.category === c);
-    return (c === "flights" || c === "lodging") && has ? "existing" : "pay";
-  }
 
-  const dated = category === "flights" || category === "lodging";
-  const steps: Step[] = dated ? ["category", "pay", "dates", "amounts", "review"] : ["category", "pay", "amounts", "review"];
-  const progress = step === "existing" ? 1 : steps.indexOf(step);
+
+  const steps: Step[] = isDated(category) ? ["category", "dates", "amounts", "review"] : ["category", "amounts", "review"];
+  const progress = steps.indexOf(step);
 
   function reset() {
     setCategory(null);
     setStep("category");
-    setPay(null);
     setOneWay(false);
     setStart(null);
     setEnd(null);
@@ -91,7 +89,6 @@ export function AddExpenseWizard({
     setRet(EMPTY);
     setSingle(EMPTY);
     setDescription("");
-    setProgram("");
     setIsTotal(true);
     setErr(null);
   }
@@ -101,22 +98,36 @@ export function AddExpenseWizard({
     setStep(s);
   };
   const back = () => {
-    if (step === "existing" || step === "pay") return go("category");
     go(steps[steps.indexOf(step) - 1]);
   };
 
-  const usesCash = pay === "cash" || pay === "both";
-  const usesPoints = pay === "points" || pay === "both";
+  /** The return flight follows the departing flight's program until it is changed. */
+  const updateDepart = (m: Money) => {
+    setDepart(m);
+    setRet((r) => (r.program === "" || r.program === depart.program ? { ...r, program: m.program } : r));
+  };
 
   /** The rows this answer set will create. */
   function build(): ExpenseInput[] {
-    if (!category || !pay) return [];
-    const base = { trip_id: trip.id, category, entry_type: "transaction" as const, program: usesPoints ? program.trim() || null : null, end_date: null };
-    const money = (m: Money) => ({ amount: usesCash ? Math.round(num(m.cash) * 100) / 100 : 0, points: usesPoints ? Math.round(num(m.points)) : 0 });
+    if (!category) return [];
+    const base = { trip_id: trip.id, category, entry_type: "transaction" as const, end_date: null };
+    const cents = (v: string) => Math.round(num(v) * 100) / 100;
+    const money = (m: Money) => {
+      const points = Math.round(num(m.points));
+      return {
+        amount: cents(m.cash),
+        points,
+        fees: cents(m.fees),
+        baggage: category === "flights" ? cents(m.baggage) : 0,
+        program: points ? m.program.trim() || null : null,
+      };
+    };
     if (category === "flights") {
-      const rows: ExpenseInput[] = [{ ...base, ...money(depart), description: "Departing flight", expense_date: start }];
+      const route = description.trim();
+      const name = (label: string) => (route ? `${label} · ${route}` : label);
+      const rows: ExpenseInput[] = [{ ...base, ...money(depart), description: name(oneWay ? "Flight" : "Departing flight"), expense_date: start }];
       const r = money(ret);
-      if (!oneWay && (r.amount || r.points)) rows.push({ ...base, ...r, description: "Return flight", expense_date: end });
+      if (!oneWay && (r.amount || r.points || r.fees || r.baggage)) rows.push({ ...base, ...r, description: name("Return flight"), expense_date: end });
       return rows;
     }
     if (category === "lodging")
@@ -134,9 +145,10 @@ export function AddExpenseWizard({
 
   function validateAmounts(): string | null {
     const rows = build();
-    if (!rows.length || rows.every((r) => !r.amount && !r.points))
+    if (!rows.length || rows.every((r) => !r.amount && !r.points && !r.fees && !r.baggage))
       return category === "flights" ? "Enter what the departing flight cost." : "Enter an amount.";
-    if (usesPoints && rows.some((r) => r.points) && !program.trim()) return "Which loyalty program were the points from?";
+    if (rows.some((r) => r.points && !r.program))
+      return rows.length > 1 ? "Choose the points program for each flight." : "Which points program were the points from?";
     return null;
   }
 
@@ -146,9 +158,17 @@ export function AddExpenseWizard({
     try {
       const rows = build();
       await onSave(rows);
-      if (another) {
-        setSaved(`Saved ${CATEGORY_MAP[category!].label.toLowerCase()}`);
-        reset();
+      if (another && category) {
+        // Same category again: clear the entry, keep the category.
+        setSaved(`Saved ${rows.length > 1 ? "flights" : rows[0]?.description || CATEGORY_MAP[category].label}`);
+        setSingle(EMPTY);
+        setDepart(EMPTY);
+        setRet(EMPTY);
+        setDescription("");
+        setStart(null);
+        setEnd(null);
+        if (category === "other") setIsTotal(false);
+        go(entryStep(category));
       } else onClose();
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Could not save.");
@@ -156,14 +176,6 @@ export function AddExpenseWizard({
       setBusy(false);
     }
   }
-
-  const programChoices = [
-    ...new Set([
-      ...programs,
-      ...(category === "flights" ? AIRLINE_PROGRAMS : category === "lodging" ? HOTEL_PROGRAMS : []),
-      ...BANK_PROGRAMS,
-    ]),
-  ].slice(0, 10);
 
   return (
     <div>
@@ -185,7 +197,7 @@ export function AddExpenseWizard({
         <Prompt title="What did you spend on?" sub={saved ? `✓ ${saved}. Add another?` : trip.name}>
           <div className="grid grid-cols-2 gap-2.5">
             {CATEGORIES.map((c) => {
-              const done = (c.key === "flights" || c.key === "lodging") && tripExpenses.some((e) => e.category === c.key);
+              const count = tripExpenses.filter((e) => e.category === c.key).length;
               return (
                 <button
                   key={c.key}
@@ -193,14 +205,14 @@ export function AddExpenseWizard({
                   onClick={() => {
                     setCategory(c.key);
                     setSaved(null);
-                    go(firstStepFor(c.key));
+                    go(entryStep(c.key));
                   }}
                 >
                   <span className="inline-flex size-11 items-center justify-center rounded-2xl" style={{ backgroundColor: `${c.color}1f`, color: c.color }}>
                     <Icon name={c.icon} className="size-5" />
                   </span>
                   <span className="font-semibold">{c.label}</span>
-                  {done && <span className="absolute top-3 right-3 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">Added</span>}
+                  {count > 0 && <span className="absolute top-3 right-3 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">{count} added</span>}
                 </button>
               );
             })}
@@ -208,63 +220,9 @@ export function AddExpenseWizard({
         </Prompt>
       )}
 
-      {step === "existing" && category && (
-        <Prompt
-          title={category === "flights" ? "Flights are already added" : "Your hotel is already added"}
-          sub={`Tap one to edit it. Multiple ${category === "flights" ? "flights" : "hotels"} per trip are coming in V2.`}
-        >
-          <div className="space-y-2">
-            {tripExpenses
-              .filter((e) => e.category === category)
-              .map((e) => (
-                <button key={e.id} className="tile flex-row items-center justify-between text-left" onClick={() => onEdit(e)}>
-                  <span>
-                    <span className="block font-semibold">{e.description || CATEGORY_MAP[category].label}</span>
-                    <span className="text-xs text-zinc-500">
-                      {e.end_date && e.expense_date ? fmtRange(e.expense_date, e.end_date) : fmtShortDate(e.expense_date)}
-                    </span>
-                  </span>
-                  <span className="text-right text-sm">
-                    {e.amount > 0 && <span className="block font-semibold">{usd(e.amount, true)}</span>}
-                    {e.points > 0 && <span className="block text-xs text-zinc-500">{pts(e.points)} pts</span>}
-                  </span>
-                </button>
-              ))}
-          </div>
-          <button className="mt-4 text-sm text-zinc-500 underline" onClick={() => go("pay")}>
-            Add another anyway
-          </button>
-        </Prompt>
-      )}
-
-      {step === "pay" && category && (
-        <Prompt title="How did you pay?" sub={CATEGORY_MAP[category].label}>
-          <div className="space-y-2.5">
-            {PAY_OPTIONS.map((o) => (
-              <button
-                key={o.key}
-                className={`tile flex-row items-center gap-4 text-left ${pay === o.key ? "tile-on" : ""}`}
-                onClick={() => {
-                  setPay(o.key);
-                  go(dated ? "dates" : "amounts");
-                }}
-              >
-                <span className="inline-flex size-11 shrink-0 items-center justify-center rounded-2xl bg-[var(--accent-soft)] text-[var(--accent)]">
-                  <Icon name={o.icon} className="size-5" />
-                </span>
-                <span>
-                  <span className="block font-semibold">{o.title}</span>
-                  <span className="text-sm text-zinc-500">{o.sub}</span>
-                </span>
-              </button>
-            ))}
-          </div>
-        </Prompt>
-      )}
-
       {step === "dates" && category && (
         <Prompt
-          title={category === "flights" ? "When are you flying?" : "When are you staying?"}
+          title={category === "flights" ? "Flight dates" : "Hotel dates"}
           sub={
             start
               ? category === "flights"
@@ -272,9 +230,8 @@ export function AddExpenseWizard({
                 : end
                   ? `Check in ${fmtShortDate(start)} → Check out ${fmtShortDate(end)} · ${nights(start, end)} nights`
                   : `Check in ${fmtShortDate(start)} → tap check-out date`
-              : category === "flights"
-                ? "Tap your departure date, then your return date."
-                : "Tap check-in, then check-out."
+              : (saved ? `✓ ${saved}. ` : "") +
+                (category === "flights" ? "Tap your departure date, then your return date." : "Tap check-in, then check-out.")
           }
         >
           <button
@@ -312,6 +269,7 @@ export function AddExpenseWizard({
               start={start}
               end={end}
               single={category === "flights" && oneWay}
+              defaultMonth={trip.start_date}
               onChange={(s, e) => {
                 setStart(s);
                 setEnd(e);
@@ -322,7 +280,7 @@ export function AddExpenseWizard({
         </Prompt>
       )}
 
-      {step === "amounts" && category && pay && (
+      {step === "amounts" && category && (
         <Prompt
           title={category === "flights" ? "What did the flights cost?" : category === "lodging" ? "What did the stay cost?" : "How much was it?"}
           sub={
@@ -332,7 +290,9 @@ export function AddExpenseWizard({
                 : "Booked as one round trip? Put the full price on the departing flight and leave the return empty."
               : category === "lodging" && start && end
                 ? `${fmtRange(start, end)} · ${nights(start, end)} nights`
-                : undefined
+                : saved
+                  ? `✓ ${saved}. Enter the next one.`
+                  : undefined
           }
         >
           <div className="space-y-4">
@@ -351,56 +311,49 @@ export function AddExpenseWizard({
             )}
             {category === "flights" ? (
               <>
-                <MoneyGroup label="Departing flight" sub={fmtShortDate(start)} value={depart} onChange={setDepart} cash={usesCash} points={usesPoints} autoFocus />
-                {!oneWay && <MoneyGroup label="Return flight" sub={fmtShortDate(end)} value={ret} onChange={setRet} cash={usesCash} points={usesPoints} />}
+                <MoneyGroup label="Departing flight" sub={fmtShortDate(start)} value={depart} onChange={updateDepart} category={category} programs={programs} autoFocus />
+                {!oneWay && <MoneyGroup label="Return flight" sub={fmtShortDate(end)} value={ret} onChange={setRet} category={category} programs={programs} />}
               </>
             ) : (
-              <MoneyGroup value={single} onChange={setSingle} cash={usesCash} points={usesPoints} autoFocus />
+              <MoneyGroup value={single} onChange={setSingle} category={category} programs={programs} autoFocus />
             )}
-            {usesPoints && (
-              <div>
-                <span className="label">Which program?</span>
-                <div className="flex flex-wrap gap-1.5">
-                  {programChoices.map((p) => (
-                    <button key={p} className={`chip ${program === p ? "chip-on" : ""}`} onClick={() => setProgram(p)}>
-                      {p}
-                    </button>
-                  ))}
-                </div>
-                <input className="input mt-2" placeholder="Or type another program" value={programChoices.includes(program) ? "" : program} onChange={(e) => setProgram(e.target.value)} />
-              </div>
-            )}
-            {category !== "flights" && (
-              <div>
-                <label className="label" htmlFor="wz-desc">
-                  {category === "lodging" ? "Hotel name (optional)" : "Note (optional)"}
-                </label>
-                <input
-                  id="wz-desc"
-                  className="input"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder={category === "lodging" ? "e.g. Park Hyatt" : category === "transport" ? "e.g. Rental car" : category === "activities" ? "e.g. Museum tickets" : ""}
-                />
-              </div>
-            )}
+            <p className="-mt-1 text-xs text-zinc-500">Leave blank anything you didn&apos;t pay. Fees are taxes &amp; fees paid in cash, e.g. on a points booking.</p>
+            <div>
+              <label className="label" htmlFor="wz-desc">
+                {category === "flights" ? "Route (optional)" : category === "lodging" ? "Hotel name (optional)" : "Note (optional)"}
+              </label>
+              <input
+                id="wz-desc"
+                className="input"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder={category === "flights" ? "e.g. SFO → LIS" : category === "lodging" ? "e.g. Park Hyatt" : category === "transport" ? "e.g. Rental car" : category === "activities" ? "e.g. Museum tickets" : ""}
+              />
+            </div>
           </div>
           {err && <p className="mt-3 text-sm text-red-600">{err}</p>}
           <Next
             onClick={() => {
               const e = validateAmounts();
               if (e) setErr(e);
-              else go("review");
+              else {
+                setSaved(null);
+                go("review");
+              }
             }}
           />
         </Prompt>
       )}
 
       {step === "review" && category && (
-        <Prompt title="Look good?" sub="You can edit any entry later by tapping it.">
+        <Prompt title="Look good?" sub="Tap an entry to change it.">
           <div className="space-y-2">
             {build().map((r, i) => (
-              <div key={i} className="flex items-center gap-3 rounded-2xl bg-zinc-50 p-3.5 dark:bg-zinc-950">
+              <button
+                key={i}
+                className="flex w-full items-center gap-3 rounded-2xl bg-zinc-50 p-3.5 text-left transition hover:bg-zinc-100 active:scale-[0.99] dark:bg-zinc-950 dark:hover:bg-zinc-800"
+                onClick={() => go("amounts")}
+              >
                 <span className="inline-flex size-10 items-center justify-center rounded-xl" style={{ backgroundColor: `${CATEGORY_MAP[category].color}1f`, color: CATEGORY_MAP[category].color }}>
                   <Icon name={CATEGORY_MAP[category].icon} className="size-5" />
                 </span>
@@ -417,10 +370,11 @@ export function AddExpenseWizard({
                   </div>
                 </div>
                 <div className="text-right">
-                  {r.amount > 0 && <div className="font-semibold tabular-nums">{usd(r.amount, true)}</div>}
-                  {r.points > 0 && <div className="text-xs text-zinc-500 tabular-nums">{pts(r.points)} pts</div>}
+                  {dollars(r) > 0 && <div className="font-semibold tabular-nums">{usd(dollars(r), true)}</div>}
+                  {r.points > 0 && <div className="font-semibold tabular-nums">{pts(r.points)} pts</div>}
+                  {extrasNote(dollars(r), r.fees, r.baggage) && <div className="text-xs text-zinc-500 tabular-nums">{extrasNote(dollars(r), r.fees, r.baggage)}</div>}
                 </div>
-              </div>
+              </button>
             ))}
           </div>
           {err && <p className="mt-3 text-sm text-red-600">{err}</p>}
@@ -429,7 +383,7 @@ export function AddExpenseWizard({
               <Icon name="check" /> Save
             </button>
             <button className="btn btn-secondary h-12" disabled={busy} onClick={() => save(true)}>
-              Save &amp; add another
+              {category ? ANOTHER_LABEL[category] : "Save & add another"}
             </button>
           </div>
         </Prompt>
@@ -461,56 +415,73 @@ function MoneyGroup({
   sub,
   value,
   onChange,
-  cash,
-  points,
+  category,
+  programs,
   autoFocus,
 }: {
   label?: string;
   sub?: string;
   value: Money;
   onChange: (m: Money) => void;
-  cash: boolean;
-  points: boolean;
+  category: Category;
+  programs: string[];
   autoFocus?: boolean;
 }) {
+  const flight = category === "flights";
+  const set = (k: keyof Money) => (v: string) => onChange({ ...value, [k]: v });
   return (
-    <div>
+    <div className={label ? "rounded-2xl p-3.5 ring-1 ring-zinc-900/8 dark:ring-white/10" : ""}>
       {label && (
-        <div className="mb-2 flex items-baseline justify-between">
+        <div className="mb-3 flex items-baseline justify-between">
           <span className="text-sm font-semibold">{label}</span>
           {sub && <span className="text-xs text-zinc-500">{sub}</span>}
         </div>
       )}
-      <div className={`grid gap-2.5 ${cash && points ? "grid-cols-2" : ""}`}>
-        {cash && (
-          <div className="relative">
-            <span className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-zinc-400">$</span>
-            <input
-              className="input h-14 pl-8 text-lg font-semibold tabular-nums"
-              inputMode="decimal"
-              placeholder={points ? "Taxes & fees" : "0.00"}
-              value={value.cash}
-              autoFocus={autoFocus}
-              onChange={(e) => onChange({ ...value, cash: e.target.value })}
-              aria-label={`${label ?? "Cash"} amount in USD`}
-            />
-          </div>
-        )}
-        {points && (
-          <div className="relative">
-            <input
-              className="input h-14 pr-12 text-lg font-semibold tabular-nums"
-              inputMode="numeric"
-              placeholder="Points"
-              value={value.points}
-              autoFocus={autoFocus && !cash}
-              onChange={(e) => onChange({ ...value, points: e.target.value })}
-              aria-label={`${label ?? ""} points`}
-            />
-            <span className="pointer-events-none absolute top-1/2 right-4 -translate-y-1/2 text-xs text-zinc-400">pts</span>
-          </div>
-        )}
+      <div className={`grid gap-2.5 ${flight ? "grid-cols-2" : "grid-cols-3"}`}>
+        <AmountInput label="Cash" prefix="$" value={value.cash} onChange={set("cash")} autoFocus={autoFocus} />
+        <AmountInput label="Points" suffix="pts" numeric value={value.points} onChange={set("points")} />
+        <AmountInput label="Fees" prefix="$" value={value.fees} onChange={set("fees")} />
+        {flight && <AmountInput label="Baggage" prefix="$" value={value.baggage} onChange={set("baggage")} />}
+      </div>
+      <div className="mt-2.5">
+        <ProgramSelect value={value.program} onChange={set("program")} programs={programs} category={category} label="" placeholder="Points program (if you used points)" />
       </div>
     </div>
+  );
+}
+
+function AmountInput({
+  label,
+  prefix,
+  suffix,
+  numeric,
+  value,
+  onChange,
+  autoFocus,
+}: {
+  label: string;
+  prefix?: string;
+  suffix?: string;
+  numeric?: boolean;
+  value: string;
+  onChange: (v: string) => void;
+  autoFocus?: boolean;
+}) {
+  return (
+    <label className="block min-w-0">
+      <span className="label">{label}</span>
+      <span className="relative block">
+        {prefix && <span className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-zinc-400">{prefix}</span>}
+        <input
+          className={`input h-14 text-lg font-semibold tabular-nums ${prefix ? "pl-7" : ""} ${suffix ? "pr-10" : ""}`}
+          inputMode={numeric ? "numeric" : "decimal"}
+          placeholder={numeric ? "0" : "0.00"}
+          value={value}
+          autoFocus={autoFocus}
+          onChange={(e) => onChange(e.target.value)}
+        />
+        {suffix && <span className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-xs text-zinc-400">{suffix}</span>}
+      </span>
+    </label>
   );
 }

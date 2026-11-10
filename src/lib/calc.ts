@@ -1,9 +1,12 @@
+import { usd } from "./format";
 import { CATEGORIES, type Category, type Expense } from "./types";
 
 export interface CategorySummary {
   category: Category;
-  cash: number; // counted cash for this category
+  cash: number; // counted dollars for this category, fees included
   points: number; // counted points for this category
+  fees: number; // the part of `cash` that is taxes & fees
+  baggage: number; // the part of `cash` that is baggage
   entries: Expense[];
   mode: "total" | "itemized";
   totalCash: number; // sum of category_total entries
@@ -22,6 +25,20 @@ export interface Summary {
 
 const sum = (xs: Expense[], f: (e: Expense) => number) => xs.reduce((s, e) => s + f(e), 0);
 const round = (n: number) => Math.round(n * 100) / 100;
+/** Everything paid in dollars for one entry: cash plus taxes & fees plus baggage. */
+export const dollars = (e: Pick<Expense, "amount" | "fees" | "baggage">) => round(e.amount + (e.fees ?? 0) + (e.baggage ?? 0));
+
+/**
+ * Short note on the fees and baggage inside a dollar total, e.g. "incl. $5.60 fees",
+ * or "taxes & fees" when they are the whole total. Null when there are none.
+ */
+export function extrasNote(total: number, fees: number, baggage: number, whole = false): string | null {
+  const extra = round(fees + baggage);
+  if (!extra) return null;
+  const what = fees && baggage ? "fees & bags" : fees ? "fees" : "bags";
+  if (Math.abs(total - extra) < 0.005) return fees && baggage ? "fees & baggage" : fees ? "taxes & fees" : "baggage";
+  return `incl. ${whole ? usd(Math.round(extra)) : usd(extra, true)} ${what}`;
+}
 
 export const UNSPECIFIED_PROGRAM = "Unspecified program";
 
@@ -49,14 +66,16 @@ export function summarize(expenses: Expense[]): Summary {
     const countedEntries = mode === "total" ? totals : [...items, ...extras];
     countedEntries.forEach((e) => counted.add(e.id));
 
-    const totalCash = round(sum(totals, (e) => e.amount));
-    const itemizedCash = round(sum(items, (e) => e.amount));
-    const extraCash = round(sum(extras, (e) => e.amount));
+    const totalCash = round(sum(totals, dollars));
+    const itemizedCash = round(sum(items, dollars));
+    const extraCash = round(sum(extras, dollars));
 
     categories.push({
       category: key,
-      cash: round(sum(countedEntries, (e) => e.amount)),
+      cash: round(sum(countedEntries, dollars)),
       points: sum(countedEntries, (e) => e.points),
+      fees: round(sum(countedEntries, (e) => e.fees ?? 0)),
+      baggage: round(sum(countedEntries, (e) => e.baggage ?? 0)),
       entries,
       mode,
       totalCash,

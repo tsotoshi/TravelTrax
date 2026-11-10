@@ -21,6 +21,8 @@ create table if not exists public.expenses (
   description  text not null default '',
   amount       numeric(12, 2) not null default 0 check (amount >= 0),
   points       bigint not null default 0 check (points >= 0),
+  fees         numeric(12, 2) not null default 0 check (fees >= 0), -- taxes & fees paid in cash
+  baggage      numeric(12, 2) not null default 0 check (baggage >= 0), -- checked-bag fees
   program      text,
   expense_date date,
   end_date     date,          -- e.g. hotel check-out
@@ -35,6 +37,8 @@ create table if not exists public.expenses (
 
 -- For databases created before end_date existed:
 alter table public.expenses add column if not exists end_date date;
+alter table public.expenses add column if not exists fees numeric(12, 2) not null default 0 check (fees >= 0);
+alter table public.expenses add column if not exists baggage numeric(12, 2) not null default 0 check (baggage >= 0);
 
 create index if not exists trips_user_start_idx on public.trips (user_id, start_date desc);
 create index if not exists expenses_trip_idx on public.expenses (trip_id);

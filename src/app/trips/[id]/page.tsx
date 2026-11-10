@@ -7,8 +7,8 @@ import { AddExpenseWizard } from "@/components/AddExpenseWizard";
 import { ExpenseForm } from "@/components/ExpenseForm";
 import { Icon } from "@/components/Icon";
 import { TripForm } from "@/components/TripForm";
-import { BarList, CategoryIcon, EmptyState, ExportMenu, Modal } from "@/components/ui";
-import { summarize, type CategorySummary } from "@/lib/calc";
+import { BarList, CategoryIcon, EmptyState, ExportMenu, Modal, StatBox } from "@/components/ui";
+import { dollars, extrasNote, summarize, type CategorySummary } from "@/lib/calc";
 import { compact, fmtRange, fmtShortDate, nights, pts, usd, usdShort } from "@/lib/format";
 import { useStore } from "@/lib/store";
 import { CATEGORY_MAP, ENTRY_TYPE_MAP, type Category, type Expense } from "@/lib/types";
@@ -84,10 +84,9 @@ export default function TripPage() {
             </button>
           </div>
         </div>
-        <div className="mt-6 grid grid-cols-3 gap-3">
-          <HeroStat label="Cash" value={usdShort(s.cash)} />
+        <div className="mt-6 grid grid-cols-2 gap-3">
+          <HeroStat label="Spent" value={usdShort(s.cash)} />
           <HeroStat label="Points" value={compact(s.points)} />
-          <HeroStat label="Per day" value={usdShort(s.cash / Math.max(n + 1, 1))} />
         </div>
         {trip.notes && <p className="mt-4 text-sm whitespace-pre-line text-white/80">{trip.notes}</p>}
       </section>
@@ -137,7 +136,7 @@ export default function TripPage() {
                   </span>
                 ),
                 value: c.cash,
-                display: usd(c.cash),
+                display: usd(Math.round(c.cash)),
                 sub: s.cash ? `${Math.round((c.cash / s.cash) * 100)}%` : undefined,
                 color: CATEGORY_MAP[c.category].color,
               }))}
@@ -161,7 +160,7 @@ export default function TripPage() {
       </div>
 
       <button
-        className="btn btn-primary fixed inset-x-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-30 h-14 text-base shadow-xl shadow-indigo-500/25 lg:hidden"
+        className="btn btn-primary fixed inset-x-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-30 h-14 text-base shadow-lg shadow-zinc-900/15 lg:hidden"
         onClick={() => setWizard({})}
       >
         <Icon name="plus" className="size-5" /> Add expense
@@ -175,10 +174,6 @@ export default function TripPage() {
             programs={programs}
             initialCategory={wizard.category}
             onSave={addExpenses}
-            onEdit={(e) => {
-              setWizard(null);
-              setEditing(e);
-            }}
             onClose={() => setWizard(null)}
           />
         </Modal>
@@ -242,11 +237,11 @@ function CategorySection({ c, counted, onEdit }: { c: CategorySummary; counted: 
             </p>
           )}
         </div>
-        <div className="text-right">
-          <div className="font-semibold tabular-nums">{usd(c.cash, true)}</div>
-          {c.points > 0 && <div className="text-xs text-zinc-500 tabular-nums">{pts(c.points)} pts</div>}
-        </div>
       </header>
+      <div className="grid grid-cols-2 gap-2.5 px-4 pb-3.5">
+        <StatBox label="Cash spent" value={usd(Math.round(c.cash))} note={extrasNote(c.cash, c.fees, c.baggage, true)} />
+        <StatBox label="Points used" value={c.points ? pts(c.points) : "—"} />
+      </div>
       {c.overflow && (
         <div className="flex items-center gap-2 bg-amber-50 px-4 py-2 text-xs text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
           <Icon name="alert" className="size-3.5 shrink-0" />
@@ -269,11 +264,20 @@ function CategorySection({ c, counted, onEdit }: { c: CategorySummary; counted: 
                     )}
                   </div>
                   <div className="mt-0.5 text-xs text-zinc-500">
-                    {[entryWhen(e), e.points ? `${pts(e.points)} pts · ${e.program ?? "—"}` : null, included ? "included in trip total" : null].filter(Boolean).join(" · ")}
+                    {[
+                      entryWhen(e),
+                      e.points ? (e.program ?? "—") : null,
+                      e.fees ? `${usd(e.fees)} fees` : null,
+                      e.baggage ? `${usd(e.baggage)} bags` : null,
+                      included ? "included in trip total" : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
                   </div>
                 </div>
-                <span className={`text-sm tabular-nums ${included ? "text-zinc-400 line-through" : "font-semibold"}`}>
-                  {e.amount > 0 || !e.points ? usd(e.amount, true) : ""}
+                <span className={`text-right text-sm tabular-nums ${included ? "text-zinc-400 line-through" : "font-semibold"}`}>
+                  {(dollars(e) > 0 || !e.points) && <span className="block">{usd(dollars(e), true)}</span>}
+                  {e.points > 0 && <span className="block">{pts(e.points)} pts</span>}
                 </span>
                 <Icon name="pencil" className="size-3.5 shrink-0 text-zinc-300 dark:text-zinc-600" />
               </button>

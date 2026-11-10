@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { Icon } from "@/components/Icon";
 import { TripForm } from "@/components/TripForm";
-import { BarList, CategoryIcon, CategoryStrip, EmptyState, ExportMenu, Modal, YearChart } from "@/components/ui";
+import { BarList, CategoryIcon, CategoryLegend, CategoryStrip, StatBox, EmptyState, ExportMenu, Modal, YearChart } from "@/components/ui";
 import { EMPTY_SUMMARY, summarizeByTrip } from "@/lib/calc";
 import { compact, fmtRange, nights, pts, usd } from "@/lib/format";
 import { useStore } from "@/lib/store";
@@ -102,7 +102,7 @@ export default function Dashboard() {
         <>
           <section className="hero p-5 sm:p-7">
             <div className="text-sm font-medium text-white/75">{year === "all" ? "Total spent on travel" : `Spent on travel in ${year}`}</div>
-            <div className="mt-1 text-4xl font-semibold tracking-tight tabular-nums sm:text-5xl">{usd(totals.cash)}</div>
+            <div className="mt-1 text-4xl font-semibold tracking-tight tabular-nums sm:text-5xl">{usd(Math.round(totals.cash))}</div>
             <div className="mt-6 grid grid-cols-3 gap-3">
               {[
                 ["Points", compact(totals.points)],
@@ -134,7 +134,7 @@ export default function Dashboard() {
                     </span>
                   ),
                   value: totals.cats.get(c.key) ?? 0,
-                  display: usd(totals.cats.get(c.key) ?? 0),
+                  display: usd(Math.round(totals.cats.get(c.key) ?? 0)),
                   color: c.color,
                 }))}
               />
@@ -178,17 +178,12 @@ export default function Dashboard() {
                         {fmtRange(t.start_date, t.end_date)}
                       </span>
                     </div>
-                    <div className="mt-4 mb-3 flex items-end justify-between">
-                      <div>
-                        <div className="text-xl font-semibold tabular-nums">{usd(s.cash)}</div>
-                        <div className="text-xs text-zinc-500">cash</div>
-                      </div>
-                      <div className="text-right">
-                        <div className="font-medium tabular-nums">{s.points ? pts(s.points) : "—"}</div>
-                        <div className="text-xs text-zinc-500">points</div>
-                      </div>
+                    <div className="mt-4 mb-3 grid grid-cols-2 gap-2.5">
+                      <StatBox label="Cash spent" value={usd(Math.round(s.cash))} />
+                      <StatBox label="Points used" value={s.points ? pts(s.points) : "—"} />
                     </div>
                     <CategoryStrip parts={s.categories} />
+                    <CategoryLegend parts={s.categories} />
                   </Link>
                 );
               })}

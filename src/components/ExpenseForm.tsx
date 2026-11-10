@@ -2,9 +2,10 @@
 
 import { useId, useState } from "react";
 import { fmtRange, nights } from "@/lib/format";
-import { CATEGORIES, COMMON_PROGRAMS, ENTRY_TYPES, ENTRY_TYPE_MAP, type Expense, type ExpenseInput } from "@/lib/types";
+import { CATEGORIES, ENTRY_TYPES, ENTRY_TYPE_MAP, type Expense, type ExpenseInput } from "@/lib/types";
 import { DateRangePicker } from "./DateRangePicker";
 import { Icon } from "./Icon";
+import { ProgramSelect } from "./ProgramSelect";
 
 /** Full edit form for an existing entry (new entries go through AddExpenseWizard). */
 export function ExpenseForm({
@@ -26,6 +27,8 @@ export function ExpenseForm({
     description: expense.description,
     amount: expense.amount ? String(expense.amount) : "",
     points: expense.points ? String(expense.points) : "",
+    fees: expense.fees ? String(expense.fees) : "",
+    baggage: expense.baggage ? String(expense.baggage) : "",
     program: expense.program ?? "",
     start: expense.expense_date,
     end: expense.end_date,
@@ -37,16 +40,21 @@ export function ExpenseForm({
   const id = (k: string) => `${uid}-${k}`;
   const set = (k: keyof typeof d) => (e: { target: { value: string } }) => setD((p) => ({ ...p, [k]: e.target.value }));
   const isHotel = d.category === "lodging";
+  const isFlight = d.category === "flights";
   const showEntryType = d.category === "other" || d.entry_type !== "transaction";
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     const amount = d.amount.trim() === "" ? 0 : Number(d.amount.replace(/[,$]/g, ""));
     const points = d.points.trim() === "" ? 0 : Math.round(Number(d.points.replace(/,/g, "")));
+    const fees = d.fees.trim() === "" ? 0 : Number(d.fees.replace(/[,$]/g, ""));
+    const baggage = !isFlight || d.baggage.trim() === "" ? 0 : Number(d.baggage.replace(/[,$]/g, ""));
     if (!Number.isFinite(amount) || amount < 0) return setErr("Enter a valid cash amount.");
     if (!Number.isFinite(points) || points < 0) return setErr("Enter a valid number of points.");
-    if (amount === 0 && points === 0) return setErr("Enter a cash amount or points.");
-    if (points > 0 && !d.program.trim()) return setErr("Choose the loyalty program for these points.");
+    if (!Number.isFinite(fees) || fees < 0) return setErr("Enter a valid fees amount.");
+    if (!Number.isFinite(baggage) || baggage < 0) return setErr("Enter a valid baggage amount.");
+    if (amount === 0 && points === 0 && fees === 0 && baggage === 0) return setErr("Enter cash, points, fees or baggage.");
+    if (points > 0 && !d.program.trim()) return setErr("Choose the points program for these points.");
     setBusy(true);
     setErr(null);
     try {
@@ -57,6 +65,8 @@ export function ExpenseForm({
         description: d.description.trim(),
         amount: Math.round(amount * 100) / 100,
         points,
+        fees: Math.round(fees * 100) / 100,
+        baggage: Math.round(baggage * 100) / 100,
         program: points > 0 ? d.program.trim() : null,
         expense_date: d.start || null,
         end_date: isHotel ? d.end || null : null,
@@ -98,9 +108,9 @@ export function ExpenseForm({
         <input id={id("desc")} name="desc" className="input" value={d.description} onChange={set("description")} />
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className={`grid gap-3 ${isFlight ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-3"}`}>
         <div>
-          <label className="label" htmlFor={id("amount")}>Cash (USD)</label>
+          <label className="label" htmlFor={id("amount")}>Cash</label>
           <div className="relative">
             <span className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-sm text-zinc-400">$</span>
             <input id={id("amount")} name="amount" className="input pl-7 tabular-nums" inputMode="decimal" placeholder="0.00" value={d.amount} onChange={set("amount")} />
@@ -110,18 +120,27 @@ export function ExpenseForm({
           <label className="label" htmlFor={id("points")}>Points</label>
           <input id={id("points")} name="points" className="input tabular-nums" inputMode="numeric" placeholder="0" value={d.points} onChange={set("points")} />
         </div>
+        <div>
+          <label className="label" htmlFor={id("fees")}>Fees</label>
+          <div className="relative">
+            <span className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-sm text-zinc-400">$</span>
+            <input id={id("fees")} name="fees" className="input pl-7 tabular-nums" inputMode="decimal" placeholder="0.00" value={d.fees} onChange={set("fees")} />
+          </div>
+        </div>
+        {isFlight && (
+          <div>
+            <label className="label" htmlFor={id("baggage")}>Baggage</label>
+            <div className="relative">
+              <span className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-sm text-zinc-400">$</span>
+              <input id={id("baggage")} name="baggage" className="input pl-7 tabular-nums" inputMode="decimal" placeholder="0.00" value={d.baggage} onChange={set("baggage")} />
+            </div>
+          </div>
+        )}
       </div>
+      <p className="-mt-2 text-xs text-zinc-500">Fees are taxes &amp; fees paid in cash on a points booking. Fees{isFlight ? " and baggage" : ""} count toward dollars spent.</p>
 
       {d.points.trim() !== "" && d.points.trim() !== "0" && (
-        <div>
-          <label className="label" htmlFor={id("program")}>Loyalty program</label>
-          <input id={id("program")} name="program" className="input" list={id("programs")} value={d.program} onChange={set("program")} placeholder="Marriott Bonvoy" />
-          <datalist id={id("programs")}>
-            {[...new Set([...programs, ...COMMON_PROGRAMS])].map((p) => (
-              <option key={p} value={p} />
-            ))}
-          </datalist>
-        </div>
+        <ProgramSelect id={id("program")} value={d.program} onChange={(v) => setD((p) => ({ ...p, program: v }))} programs={programs} category={d.category} />
       )}
 
       <div>

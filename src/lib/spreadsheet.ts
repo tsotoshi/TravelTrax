@@ -142,6 +142,8 @@ export const EXPORT_HEADERS = [
   "Description",
   "Amount (USD)",
   "Points",
+  "Fees (USD)",
+  "Baggage (USD)",
   "Loyalty program",
   "Expense date",
   "End date",
@@ -154,7 +156,7 @@ function exportRows(trips: Trip[], expenses: Expense[]): CellValue[][] {
   for (const t of sorted) {
     const tripCells = [t.name, t.destination, t.start_date, t.end_date, t.notes ?? ""];
     const list = expenses.filter((e) => e.trip_id === t.id);
-    if (!list.length) rows.push([...tripCells, "", "", null, null, "", "", "", ""]);
+    if (!list.length) rows.push([...tripCells, "", "", null, null, null, null, "", "", "", ""]);
     for (const e of list)
       rows.push([
         ...tripCells,
@@ -162,6 +164,8 @@ function exportRows(trips: Trip[], expenses: Expense[]): CellValue[][] {
         e.description,
         e.amount,
         e.points,
+        e.fees,
+        e.baggage,
         e.program ?? "",
         e.expense_date ?? "",
         e.end_date ?? "",
@@ -197,13 +201,14 @@ export async function exportXlsx(filename: string, trips: Trip[], expenses: Expe
   const ws = wb.addWorksheet("Expenses");
   ws.columns = EXPORT_HEADERS.map((h) => ({ header: h, width: h === "Description" ? 32 : h === "Trip" ? 24 : 16 }));
   for (const r of exportRows(trips, expenses)) {
-    ws.addRow(r.map((v, i) => ([2, 3, 10, 11].includes(i) ? toDate(String(v ?? "")) : v)));
+    ws.addRow(r.map((v, i) => ([2, 3, 12, 13].includes(i) ? toDate(String(v ?? "")) : v)));
   }
   ws.getRow(1).font = { bold: true };
   ws.views = [{ state: "frozen", ySplit: 1 }];
   ws.getColumn(8).numFmt = '"$"#,##0.00';
   ws.getColumn(9).numFmt = "#,##0";
-  [3, 4, 11, 12].forEach((c) => (ws.getColumn(c).numFmt = "yyyy-mm-dd"));
+  ws.getColumn(10).numFmt = ws.getColumn(11).numFmt = '"$"#,##0.00';
+  [3, 4, 13, 14].forEach((c) => (ws.getColumn(c).numFmt = "yyyy-mm-dd"));
 
   const { summarizeByTrip } = await import("./calc");
   const sums = summarizeByTrip(expenses);
@@ -213,7 +218,7 @@ export async function exportXlsx(filename: string, trips: Trip[], expenses: Expe
     { header: "Destination", width: 20 },
     { header: "Start", width: 12 },
     { header: "End", width: 12 },
-    { header: "Cash spent (USD)", width: 16 },
+    { header: "Cash spent incl. fees (USD)", width: 22 },
     { header: "Points redeemed", width: 16 },
     { header: "Notes", width: 32 },
   ];

@@ -20,7 +20,7 @@ export const supabase: SupabaseClient | null = url && key ? createClient(url, ke
 /* ---------------- Supabase ---------------- */
 
 const tripCols = "id,name,destination,start_date,end_date,notes,created_at";
-const expenseCols = "id,trip_id,category,description,amount,points,program,expense_date,end_date,entry_type,created_at";
+const expenseCols = "id,trip_id,category,description,amount,points,fees,baggage,program,expense_date,end_date,entry_type,created_at";
 
 /** Coerce numeric strings and fold legacy categories. */
 const clean = (e: Expense): Expense => ({
@@ -28,6 +28,8 @@ const clean = (e: Expense): Expense => ({
   category: normCategory(e.category),
   amount: Number(e.amount),
   points: Number(e.points),
+  fees: Number(e.fees ?? 0),
+  baggage: Number(e.baggage ?? 0),
   end_date: e.end_date ?? null,
 });
 

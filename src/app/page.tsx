@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { Icon } from "@/components/Icon";
 import { TripForm } from "@/components/TripForm";
-import { BarList, CategoryBreakdown, CategoryLegend, CategoryStrip, EmptyState, ExportMenu, Modal, YearChart } from "@/components/ui";
+import { BarList, CategoryBreakdown, CategoryLegend, CategoryStrip, EmptyState, ExportMenu, MeasureSwitch, Modal, YearChart, type Measure } from "@/components/ui";
 import { EMPTY_SUMMARY, summarizeByTrip } from "@/lib/calc";
 import { compact, fmtRange, nights, pts, usd } from "@/lib/format";
 import { useStore } from "@/lib/store";
@@ -15,6 +15,8 @@ export default function Dashboard() {
   const { trips, expenses, ready, addTrip, loadSamples } = useStore();
   const router = useRouter();
   const [year, setYear] = useState("all");
+  // One switch decides whether every chart on the dashboard shows cash or points.
+  const [measure, setMeasure] = useState<Measure>("cash");
   const [creating, setCreating] = useState(false);
   const [loadingSamples, setLoadingSamples] = useState(false);
 
@@ -117,22 +119,27 @@ export default function Dashboard() {
                 </div>
               ))}
             </div>
-            <div className="flex gap-5 border-t border-line px-4 py-2.5 text-[13px] text-muted tabular-nums sm:px-6">
+            <div className="flex items-center gap-5 border-t border-line px-4 py-2 text-[13px] text-muted tabular-nums sm:px-6">
               <span>
                 <b className="font-semibold text-fg">{shown.length}</b> {shown.length === 1 ? "trip" : "trips"}
               </span>
               <span>
                 <b className="font-semibold text-fg">{shown.reduce((s, t) => s + nights(t.start_date, t.end_date), 0)}</b> nights
               </span>
+              <span className="ml-auto flex items-center gap-2">
+                <span className="hidden text-xs sm:inline">Charts show</span>
+                <MeasureSwitch value={measure} onChange={setMeasure} />
+              </span>
             </div>
           </section>
 
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
             <section className="card flex flex-col p-4 md:col-span-2 lg:col-span-1">
-              <h2 className="card-title mb-2">Spending by year</h2>
-              <YearChart data={byYear} selected={year} onSelect={setYear} />
+              <h2 className="card-title mb-2">{measure === "cash" ? "Cash spent by year" : "Points used by year"}</h2>
+              <YearChart data={byYear} selected={year} onSelect={setYear} measure={measure} />
             </section>
             <CategoryBreakdown
+              mode={measure}
               parts={CATEGORIES.map((c) => ({ category: c.key, cash: totals.cats.get(c.key) ?? 0, points: totals.catPoints.get(c.key) ?? 0 }))}
             />
             <section className="card p-4">
@@ -184,8 +191,8 @@ export default function Dashboard() {
                           </p>
                         </div>
                         <div className="col-span-3 row-start-3 min-w-0 sm:col-span-1 sm:row-start-auto">
-                          <CategoryStrip parts={s.categories} />
-                          <CategoryLegend parts={s.categories} />
+                          <CategoryStrip parts={s.categories} measure={measure} />
+                          <CategoryLegend parts={s.categories} measure={measure} />
                         </div>
                         <span className="text-right text-sm font-semibold tabular-nums">{usd(Math.round(s.cash))}</span>
                         <span className="text-right text-sm font-semibold tabular-nums">

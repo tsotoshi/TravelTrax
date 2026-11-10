@@ -1,11 +1,27 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { pts, usd } from "@/lib/format";
+import { compact, pts, usd } from "@/lib/format";
 import { CATEGORY_MAP, type Category } from "@/lib/types";
 import { exportCsv, exportXlsx } from "@/lib/spreadsheet";
 import type { Expense, Trip } from "@/lib/types";
 import { Icon } from "./Icon";
+
+/** What the charts measure: dollars spent or points redeemed. */
+export type Measure = "cash" | "points";
+
+/** Small Cash | Points switch shared by the charts. */
+export function MeasureSwitch({ value, onChange }: { value: Measure; onChange: (m: Measure) => void }) {
+  return (
+    <div className="segmented grid-cols-2" role="group" aria-label="Show cash or points">
+      {(["cash", "points"] as const).map((m) => (
+        <button key={m} type="button" className={`segment px-2.5 py-0.5 text-xs ${value === m ? "segment-on" : ""}`} aria-pressed={value === m} onClick={() => onChange(m)}>
+          {m === "cash" ? "Cash" : "Points"}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 export function Modal({ title, onClose, children, wide }: { title: string; onClose: () => void; children: ReactNode; wide?: boolean }) {
   useEffect(() => {
@@ -98,20 +114,15 @@ export function BarList({ items, empty = "Nothing yet" }: { items: BarItem[]; em
 }
 
 /** Category bars with a Cash / Points switch, so points-heavy trips are just as readable. */
-export function CategoryBreakdown({ parts }: { parts: { category: Category; cash: number; points: number }[] }) {
-  const [mode, setMode] = useState<"cash" | "points">("cash");
+export function CategoryBreakdown({ parts, mode: fixed }: { parts: { category: Category; cash: number; points: number }[]; mode?: Measure }) {
+  const [own, setOwn] = useState<Measure>("cash");
+  const mode = fixed ?? own;
   const total = parts.reduce((s, p) => s + p[mode], 0);
   return (
     <section className="card p-4">
-      <div className="mb-2.5 flex items-center justify-between gap-3">
+      <div className="mb-2.5 flex min-h-7 items-center justify-between gap-3">
         <h2 className="card-title">{mode === "cash" ? "Cash" : "Points"} by category</h2>
-        <div className="segmented grid-cols-2" role="group" aria-label="Show cash or points">
-          {(["cash", "points"] as const).map((m) => (
-            <button key={m} type="button" className={`segment px-2.5 py-0.5 text-xs ${mode === m ? "segment-on" : ""}`} aria-pressed={mode === m} onClick={() => setMode(m)}>
-              {m === "cash" ? "Cash" : "Points"}
-            </button>
-          ))}
-        </div>
+        {!fixed && <MeasureSwitch value={own} onChange={setOwn} />}
       </div>
       <BarList
         empty={mode === "cash" ? "No cash spent" : "No points used"}
@@ -138,12 +149,15 @@ export function YearChart({
   data,
   selected,
   onSelect,
+  measure = "cash",
 }: {
   data: { year: string; cash: number; points: number }[];
   selected: string;
   onSelect: (y: string) => void;
+  measure?: Measure;
 }) {
-  const max = Math.max(...data.map((d) => d.cash), 1);
+  const max = Math.max(...data.map((d) => d[measure]), 1);
+  const label = (d: { cash: number; points: number }) => (measure === "cash" ? usd(Math.round(d.cash)) : d.points ? compact(d.points) : "0");
   if (!data.length) return <p className="py-6 text-center text-[13px] text-muted">No trips yet</p>;
   return (
     <div className="flex flex-1 items-stretch">
@@ -160,12 +174,12 @@ export function YearChart({
             <div className="flex h-24 items-end justify-center px-1.5 pt-4 sm:px-2.5">
               <div
                 className={`relative w-full max-w-6 rounded-t-[3px] transition-[height,background-color,opacity] duration-300 ${active ? "bg-accent" : "bg-edge-strong"} group-hover:opacity-85`}
-                style={{ height: `${Math.max((d.cash / max) * 100, 2)}%` }}
+                style={{ height: `${Math.max((d[measure] / max) * 100, 2)}%` }}
               >
                 <span
                   className={`absolute bottom-full left-1/2 mb-1.5 -translate-x-1/2 text-[10.5px] font-medium whitespace-nowrap tabular-nums ${active ? "text-fg" : "text-faint"}`}
                 >
-                  {usd(Math.round(d.cash))}
+                  {label(d)}
                 </span>
               </div>
             </div>
@@ -195,8 +209,8 @@ export function StatBox({ label, value, note, size = "md" }: { label: string; va
 }
 
 /** Key for CategoryStrip: a colored dot and short name per category with spending. */
-export function CategoryLegend({ parts }: { parts: { category: Category; cash: number }[] }) {
-  const shown = parts.filter((p) => p.cash > 0);
+export function CategoryLegend({ parts, measure = "cash" }: { parts: { category: Category; cash: number; points: number }[]; measure?: Measure }) {
+  const shown = parts.filter((p) => p[measure] > 0);
   if (!shown.length) return null;
   return (
     <ul className="mt-1 flex flex-wrap gap-x-2.5 gap-y-0.5 text-[11px] text-muted">
@@ -211,15 +225,15 @@ export function CategoryLegend({ parts }: { parts: { category: Category; cash: n
 }
 
 /** Stacked bar showing category mix. */
-export function CategoryStrip({ parts }: { parts: { category: Category; cash: number }[] }) {
-  const total = parts.reduce((s, p) => s + p.cash, 0);
+export function CategoryStrip({ parts, measure = "cash" }: { parts: { category: Category; cash: number; points: number }[]; measure?: Measure }) {
+  const total = parts.reduce((s, p) => s + p[measure], 0);
   if (!total) return <div className="h-1 rounded-full bg-subtle" />;
   return (
     <div className="flex h-1 gap-px overflow-hidden rounded-full">
       {parts
-        .filter((p) => p.cash > 0)
+        .filter((p) => p[measure] > 0)
         .map((p) => (
-          <div key={p.category} style={{ width: `${(p.cash / total) * 100}%`, backgroundColor: CATEGORY_MAP[p.category].color }} />
+          <div key={p.category} style={{ width: `${(p[measure] / total) * 100}%`, backgroundColor: CATEGORY_MAP[p.category].color }} />
         ))}
     </div>
   );

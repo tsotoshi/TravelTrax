@@ -61,19 +61,6 @@ export function TripForm({
       }}
     >
       <div>
-        <label className="label" htmlFor="t-name">Trip name</label>
-        <input
-          id="t-name"
-          className="input"
-          value={name}
-          onChange={(e) => {
-            setName(e.target.value);
-            setNameTouched(e.target.value.trim() !== "");
-          }}
-          placeholder="e.g. Summer in Italy"
-        />
-      </div>
-      <div>
         <label className="label" htmlFor="t-dest">Destination</label>
         <PlaceInput
           id="t-dest"
@@ -84,6 +71,19 @@ export function TripForm({
           }}
           recent={recent}
           placeholder="Search a city or country"
+        />
+      </div>
+      <div>
+        <label className="label" htmlFor="t-name">Trip name</label>
+        <input
+          id="t-name"
+          className="input"
+          value={name}
+          onChange={(e) => {
+            setName(e.target.value);
+            setNameTouched(e.target.value.trim() !== "");
+          }}
+          placeholder="e.g. Summer in Italy"
         />
       </div>
       <div>

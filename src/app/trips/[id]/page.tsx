@@ -130,7 +130,7 @@ export default function TripPage() {
 
         <aside className="space-y-2.5">
           <section className="card p-4">
-            <h2 className="card-title mb-2.5">By category</h2>
+            <h2 className="card-title mb-2.5">Cash by category</h2>
             <BarList
               empty="No spending yet"
               items={s.categories.map((c) => ({

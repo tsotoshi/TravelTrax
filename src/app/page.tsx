@@ -129,7 +129,7 @@ export default function Dashboard() {
               <YearChart data={byYear} selected={year} onSelect={setYear} />
             </section>
             <section className="card p-4">
-              <h2 className="card-title mb-2.5">By category</h2>
+              <h2 className="card-title mb-2.5">Cash by category</h2>
               <BarList
                 empty="No spending yet"
                 items={CATEGORIES.filter((c) => totals.cats.get(c.key)).map((c) => ({

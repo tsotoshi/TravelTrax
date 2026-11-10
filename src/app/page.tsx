@@ -108,8 +108,8 @@ export default function Dashboard() {
           <section className="card">
             <div className="grid grid-cols-2">
               {[
-                ["Cash", usd(Math.round(totals.cash))],
-                ["Points", compact(totals.points)],
+                ["Cash spent", usd(Math.round(totals.cash))],
+                ["Points used", compact(totals.points)],
               ].map(([l, v], i) => (
                 <div key={l} className={`min-w-0 px-4 py-4 sm:px-6 sm:py-5 ${i > 0 ? "border-l border-line" : ""}`}>
                   <div className="eyebrow">{year === "all" ? l : `${l} in ${year}`}</div>

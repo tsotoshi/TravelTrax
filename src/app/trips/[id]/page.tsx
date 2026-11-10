@@ -89,10 +89,10 @@ export default function TripPage() {
           </div>
           <div className="grid shrink-0 grid-cols-2 border-t border-line pt-3.5 sm:border-t-0 sm:pt-0">
             <div className="pr-5 sm:pr-6 sm:text-right">
-              <StatBox label="Cash" value={usdShort(s.cash)} size="lg" />
+              <StatBox label="Cash spent" value={usdShort(s.cash)} size="lg" />
             </div>
             <div className="border-l border-line pl-5 sm:pl-6 sm:text-right">
-              <StatBox label="Points" value={compact(s.points)} size="lg" />
+              <StatBox label="Points used" value={compact(s.points)} size="lg" />
             </div>
           </div>
         </div>

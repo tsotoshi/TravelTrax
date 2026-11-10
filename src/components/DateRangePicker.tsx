@@ -22,6 +22,7 @@ export function DateRangePicker({
   onChange,
   single,
   defaultMonth,
+  bounds,
 }: {
   start: string | null;
   end: string | null;
@@ -29,6 +30,8 @@ export function DateRangePicker({
   single?: boolean;
   /** YYYY-MM-DD whose month to show when nothing is picked (e.g. the trip start). */
   defaultMonth?: string;
+  /** Trip dates. Days outside them are shown dimmed (still pickable, so the form can explain). */
+  bounds?: { start: string; end: string };
 }) {
   const initial = start ? fromIso(start) : defaultMonth ? fromIso(defaultMonth) : new Date();
   const [view, setView] = useState(new Date(initial.getFullYear(), initial.getMonth(), 1));
@@ -93,6 +96,7 @@ export function DateRangePicker({
                   const inRange = !!start && !!rangeEnd && d > start && d < rangeEnd;
                   const edge = isStart || isEnd;
                   const today = d === iso(new Date());
+                  const outside = !!bounds && (d < bounds.start || d > bounds.end);
                   return (
                     <div
                       key={i}
@@ -108,7 +112,7 @@ export function DateRangePicker({
                           edge
                             ? "bg-accent font-semibold text-white"
                             : "hover:bg-subtle"
-                        } ${today && !edge ? "font-semibold text-accent-ink" : ""}`}
+                        } ${today && !edge ? "font-semibold text-accent-ink" : ""} ${outside && !edge ? "text-faint" : ""}`}
                         aria-pressed={edge}
                         aria-label={d}
                       >

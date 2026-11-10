@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { fmtRange, nights } from "@/lib/format";
+import { fmtRange, nights, outsideTrip } from "@/lib/format";
 import { useStore } from "@/lib/store";
 import type { Trip, TripInput } from "@/lib/types";
 import { DateRangePicker } from "./DateRangePicker";
 import { PlaceInput } from "./PlaceInput";
+
+const city = (destination: string) => destination.split(",")[0].trim();
 
 export function TripForm({
   trip,
@@ -16,8 +18,10 @@ export function TripForm({
   onSubmit: (input: TripInput) => Promise<void>;
   onCancel: () => void;
 }) {
-  const { trips } = useStore();
+  const { trips, expenses } = useStore();
   const [name, setName] = useState(trip?.name ?? "");
+  // A new trip's name follows the destination until the user types their own.
+  const [nameTouched, setNameTouched] = useState(!!trip);
   const [destination, setDestination] = useState(trip?.destination ?? "");
   const [start, setStart] = useState<string | null>(trip?.start_date ?? null);
   const [end, setEnd] = useState<string | null>(trip?.end_date ?? null);
@@ -27,17 +31,24 @@ export function TripForm({
   const [err, setErr] = useState<string | null>(null);
   const recent = [...new Set(trips.map((t) => t.destination).filter(Boolean))];
 
+  const missing = [!name.trim() && "a trip name", !destination.trim() && "a destination", !start && "your dates"].filter(Boolean) as string[];
+  // Editing dates must not leave existing expenses outside the trip.
+  const stranded =
+    trip && start
+      ? expenses.filter((e) => e.trip_id === trip.id && outsideTrip({ start_date: start, end_date: end ?? start }, e.expense_date, e.end_date))
+      : [];
+
   return (
     <form
       className="space-y-5"
       onSubmit={async (e) => {
         e.preventDefault();
-        if (!start) return setErr("Pick your trip dates.");
+        if (missing.length || !start || stranded.length) return;
         setBusy(true);
         setErr(null);
         try {
           await onSubmit({
-            name: name.trim() || destination.split(",")[0].trim() || "Trip",
+            name: name.trim(),
             destination: destination.trim(),
             start_date: start,
             end_date: end ?? start,
@@ -50,22 +61,34 @@ export function TripForm({
       }}
     >
       <div>
-        <label className="label" htmlFor="t-dest">Where are you going?</label>
-        <PlaceInput id="t-dest" value={destination} onChange={setDestination} recent={recent} placeholder="Search a city or country" />
-      </div>
-      <div>
         <label className="label" htmlFor="t-name">Trip name</label>
         <input
           id="t-name"
           className="input"
           value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder={destination ? `${destination.split(",")[0]} trip` : "Summer in Italy"}
+          onChange={(e) => {
+            setName(e.target.value);
+            setNameTouched(e.target.value.trim() !== "");
+          }}
+          placeholder="e.g. Summer in Italy"
+        />
+      </div>
+      <div>
+        <label className="label" htmlFor="t-dest">Destination</label>
+        <PlaceInput
+          id="t-dest"
+          value={destination}
+          onChange={(v) => {
+            setDestination(v);
+            if (!nameTouched) setName(city(v));
+          }}
+          recent={recent}
+          placeholder="Search a city or country"
         />
       </div>
       <div>
         <div className="mb-2 flex items-baseline justify-between">
-          <span className="label mb-0">When?</span>
+          <span className="label mb-0">Dates</span>
           <span className="text-[13px] font-medium tabular-nums">
             {start ? (end ? `${fmtRange(start, end)} · ${nights(start, end)} nights` : `${fmtRange(start, start)} → pick end`) : ""}
           </span>
@@ -80,6 +103,16 @@ export function TripForm({
             }}
           />
         </div>
+        {stranded.length > 0 && (
+          <p role="alert" className="mt-2 text-[13px] text-red-600 dark:text-red-400">
+            {stranded.length === 1 ? "1 expense is" : `${stranded.length} expenses are`} dated outside these dates (
+            {stranded
+              .slice(0, 3)
+              .map((x) => x.description || "Untitled")
+              .join(", ")}
+            {stranded.length > 3 ? ", …" : ""}). Pick dates that include {stranded.length === 1 ? "it" : "them"}, or change those expenses first.
+          </p>
+        )}
       </div>
       {showNotes ? (
         <div>
@@ -92,14 +125,22 @@ export function TripForm({
         </button>
       )}
       {err && <p className="text-[13px] text-red-600 dark:text-red-400">{err}</p>}
-      <div className="flex gap-2 border-t border-edge pt-4">
-        <button type="button" className="btn btn-secondary flex-1" onClick={onCancel}>
-          Cancel
-        </button>
-        <button className="btn btn-primary flex-[2]" disabled={busy || !start || !destination.trim()}>
-          {trip ? "Save changes" : "Create trip"}
-        </button>
+      {/* Pinned to the bottom of the sheet so the button is always in view. */}
+      <div className="sticky -bottom-[max(1.25rem,env(safe-area-inset-bottom))] -mx-5 -mb-[max(1.25rem,env(safe-area-inset-bottom))] border-t border-edge bg-surface px-5 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:-bottom-6 sm:-mx-6 sm:-mb-6 sm:px-6 sm:pb-6">
+        {missing.length > 0 && <p className="mb-2 text-center text-xs text-muted">Add {listOf(missing)} to continue.</p>}
+        <div className="flex gap-2">
+          <button type="button" className="btn btn-secondary flex-1" onClick={onCancel}>
+            Cancel
+          </button>
+          <button className="btn btn-primary flex-[2]" disabled={busy || missing.length > 0 || stranded.length > 0}>
+            {trip ? "Save changes" : "Create trip"}
+          </button>
+        </div>
       </div>
     </form>
   );
+}
+
+function listOf(xs: string[]) {
+  return xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`;
 }

@@ -100,24 +100,27 @@ export default function Dashboard() {
         </EmptyState>
       ) : (
         <>
-          {/* Summary */}
-          <section className="card grid grid-cols-3 sm:grid-cols-[1.6fr_1fr_1fr_1fr]">
-            <div className="col-span-3 border-b border-line px-4 py-4 sm:col-span-1 sm:border-r sm:border-b-0 sm:border-line sm:px-6">
-              <div className="eyebrow">{year === "all" ? "Total spent on travel" : `Spent on travel in ${year}`}</div>
-              <div className="mt-2 text-[30px] leading-none font-semibold tracking-[-0.035em] tabular-nums sm:text-[34px]">
-                {usd(Math.round(totals.cash))}
-              </div>
+          {/* Summary: Cash and Points side by side at equal size; trips and nights below. */}
+          <section className="card">
+            <div className="grid grid-cols-2">
+              {[
+                ["Cash", usd(Math.round(totals.cash))],
+                ["Points", compact(totals.points)],
+              ].map(([l, v], i) => (
+                <div key={l} className={`min-w-0 px-4 py-4 sm:px-6 sm:py-5 ${i > 0 ? "border-l border-line" : ""}`}>
+                  <div className="eyebrow">{year === "all" ? l : `${l} in ${year}`}</div>
+                  <div className="mt-2 truncate text-[28px] leading-none font-semibold tracking-[-0.035em] tabular-nums sm:text-[34px]">{v}</div>
+                </div>
+              ))}
             </div>
-            {[
-              ["Points", compact(totals.points)],
-              ["Trips", String(shown.length)],
-              ["Nights", String(shown.reduce((s, t) => s + nights(t.start_date, t.end_date), 0))],
-            ].map(([l, v], i) => (
-              <div key={l} className={`flex flex-col justify-end px-4 py-3.5 sm:px-6 sm:py-4 ${i > 0 ? "border-l border-line" : ""}`}>
-                <div className="eyebrow">{l}</div>
-                <div className="mt-1.5 truncate text-lg leading-none font-semibold tracking-[-0.02em] tabular-nums sm:text-[22px]">{v}</div>
-              </div>
-            ))}
+            <div className="flex gap-5 border-t border-line px-4 py-2.5 text-[13px] text-muted tabular-nums sm:px-6">
+              <span>
+                <b className="font-semibold text-fg">{shown.length}</b> {shown.length === 1 ? "trip" : "trips"}
+              </span>
+              <span>
+                <b className="font-semibold text-fg">{shown.reduce((s, t) => s + nights(t.start_date, t.end_date), 0)}</b> nights
+              </span>
+            </div>
           </section>
 
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
@@ -179,7 +182,7 @@ export default function Dashboard() {
                     <li key={t.id}>
                       <Link
                         href={`/trips/${t.id}`}
-                        className="group grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 px-4 py-3 transition-[background-color] hover:bg-subtle/60 focus-visible:bg-subtle focus-visible:outline-none sm:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_7rem_7rem_1rem] sm:gap-x-6 sm:px-5"
+                        className="group grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-4 gap-y-2 px-4 py-3 transition-[background-color] hover:bg-subtle/60 focus-visible:bg-subtle focus-visible:outline-none sm:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_7rem_7rem_1rem] sm:gap-x-6 sm:px-5"
                       >
                         <div className="min-w-0">
                           <h3 className="truncate text-sm font-medium">{t.name}</h3>
@@ -190,23 +193,21 @@ export default function Dashboard() {
                             <span className="shrink-0 tabular-nums">{fmtRange(t.start_date, t.end_date)}</span>
                           </p>
                         </div>
-                        <div className="col-span-2 row-start-2 min-w-0 sm:col-span-1 sm:row-start-auto">
+                        <div className="col-span-3 row-start-2 min-w-0 sm:col-span-1 sm:row-start-auto">
                           <CategoryStrip parts={s.categories} />
                           <CategoryLegend parts={s.categories} />
                         </div>
-                        <div className="flex flex-col items-end text-right sm:contents">
-                          <span className="text-sm font-semibold tabular-nums sm:text-right">{usd(Math.round(s.cash))}</span>
-                          <span className={`text-xs tabular-nums sm:text-right sm:text-sm ${s.points ? "text-muted sm:text-fg" : "hidden text-faint sm:block"}`}>
-                            {s.points ? (
-                              <>
-                                {pts(s.points)}
-                                <span className="text-faint"> pts</span>
-                              </>
-                            ) : (
-                              "—"
-                            )}
-                          </span>
-                        </div>
+                        <span className="text-right text-sm font-semibold tabular-nums">{usd(Math.round(s.cash))}</span>
+                        <span className="text-right text-sm font-semibold tabular-nums">
+                          {s.points ? (
+                            <>
+                              {pts(s.points)}
+                              <span className="font-normal text-faint sm:hidden"> pts</span>
+                            </>
+                          ) : (
+                            <span className="font-normal text-faint">—</span>
+                          )}
+                        </span>
                         <Icon name="back" className="hidden size-3.5 rotate-180 text-faint transition-transform group-hover:translate-x-0.5 group-hover:text-muted sm:block" />
                       </Link>
                     </li>

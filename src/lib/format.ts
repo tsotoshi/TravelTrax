@@ -64,3 +64,12 @@ export function uuid(): string {
   const h = [...b].map((x) => x.toString(16).padStart(2, "0")).join("");
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
 }
+
+/**
+ * True when an expense dated `start` (to `end`, for a hotel stay) falls outside the trip.
+ * Undated expenses are never outside.
+ */
+export function outsideTrip(trip: { start_date: string; end_date: string }, start: string | null, end?: string | null) {
+  if (!start) return false;
+  return start < trip.start_date || (end ?? start) > trip.end_date;
+}

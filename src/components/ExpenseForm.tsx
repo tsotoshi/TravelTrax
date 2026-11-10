@@ -1,21 +1,27 @@
 "use client";
 
 import { useId, useState } from "react";
-import { fmtRange, nights } from "@/lib/format";
-import { CATEGORIES, ENTRY_TYPES, ENTRY_TYPE_MAP, type Expense, type ExpenseInput } from "@/lib/types";
+import { fmtRange, nights, outsideTrip } from "@/lib/format";
+import { CATEGORIES, CATEGORY_MAP, ENTRY_TYPES, ENTRY_TYPE_MAP, type Expense, type ExpenseInput, type Trip } from "@/lib/types";
 import { DateRangePicker } from "./DateRangePicker";
 import { Icon } from "./Icon";
 import { ProgramSelect } from "./ProgramSelect";
+import { TripDateError } from "./TripDateError";
 
 /** Full edit form for an existing entry (new entries go through AddExpenseWizard). */
 export function ExpenseForm({
   expense,
+  trip,
+  tripExpenses,
   programs,
   onSubmit,
   onCancel,
   onDelete,
 }: {
   expense: Expense;
+  trip: Trip;
+  /** All expenses of this trip, used to keep one method (trip total or single purchases) per category. */
+  tripExpenses: Expense[];
   programs: string[];
   onSubmit: (input: ExpenseInput) => Promise<void>;
   onCancel: () => void;
@@ -42,6 +48,14 @@ export function ExpenseForm({
   const isHotel = d.category === "lodging";
   const isFlight = d.category === "flights";
   const showEntryType = d.category === "other" || d.entry_type !== "transaction";
+  const datesOutside = outsideTrip(trip, d.start, isHotel ? d.end : null);
+
+  // Once a category has a trip total, it can't also have single purchases, and the other way round.
+  const siblings = tripExpenses.filter((e) => e.id !== expense.id && e.category === d.category);
+  const hasTotal = siblings.some((e) => e.entry_type === "category_total");
+  const hasItems = siblings.some((e) => e.entry_type !== "category_total");
+  const lock = hasTotal && !hasItems ? "total" : hasItems && !hasTotal ? "item" : null;
+  const allowed = (t: Expense["entry_type"]) => !lock || (lock === "total") === (t === "category_total");
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -55,6 +69,13 @@ export function ExpenseForm({
     if (!Number.isFinite(baggage) || baggage < 0) return setErr("Enter a valid baggage amount.");
     if (amount === 0 && points === 0 && fees === 0 && baggage === 0) return setErr("Enter cash, points, fees or baggage.");
     if (points > 0 && !d.program.trim()) return setErr("Choose the points program for these points.");
+    if (datesOutside) return setErr("Pick a date within the trip, or extend the trip.");
+    if (!allowed(d.entry_type))
+      return setErr(
+        lock === "total"
+          ? `This trip has a trip total for ${CATEGORY_MAP[d.category].label.toLowerCase()}, so this entry must be a trip total too.`
+          : `This trip lists ${CATEGORY_MAP[d.category].label.toLowerCase()} as single purchases, so this entry can't be a trip total.`,
+      );
     setBusy(true);
     setErr(null);
     try {
@@ -157,9 +178,11 @@ export function ExpenseForm({
               start={d.start}
               end={isHotel ? d.end : null}
               single={!isHotel}
+              defaultMonth={trip.start_date}
+              bounds={{ start: trip.start_date, end: trip.end_date }}
               onChange={(s, e) => {
                 setD((p) => ({ ...p, start: s, end: e }));
-                if (!isHotel || e) setShowCal(false);
+                if ((!isHotel || e) && !outsideTrip(trip, s, isHotel ? e : null)) setShowCal(false);
               }}
             />
             {d.start && (
@@ -167,6 +190,11 @@ export function ExpenseForm({
                 Clear date
               </button>
             )}
+          </div>
+        )}
+        {d.start && datesOutside && (
+          <div className="mt-2">
+            <TripDateError trip={trip} start={d.start} end={isHotel ? d.end : null} />
           </div>
         )}
       </div>
@@ -180,13 +208,18 @@ export function ExpenseForm({
                 type="button"
                 key={t.key}
                 onClick={() => setD((p) => ({ ...p, entry_type: t.key }))}
-                className={`segment px-1 text-xs ${d.entry_type === t.key ? "segment-on" : ""}`}
+                disabled={!allowed(t.key) && d.entry_type !== t.key}
+                className={`segment px-1 text-xs disabled:cursor-not-allowed disabled:opacity-40 ${d.entry_type === t.key ? "segment-on" : ""}`}
               >
                 {t.key === "category_total" ? "Trip total" : t.label}
               </button>
             ))}
           </div>
-          <p className="mt-1.5 text-xs text-muted">{ENTRY_TYPE_MAP[d.entry_type].help}</p>
+          <p className="mt-1.5 text-xs text-muted">
+            {ENTRY_TYPE_MAP[d.entry_type].help}
+            {lock === "total" && " This category already has a trip total, so single purchases aren't available."}
+            {lock === "item" && " This trip lists this category as single purchases, so a trip total isn't available."}
+          </p>
         </div>
       )}
 
@@ -199,7 +232,7 @@ export function ExpenseForm({
         <button type="button" className="btn btn-secondary" onClick={onCancel}>
           Cancel
         </button>
-        <button className="btn btn-primary" disabled={busy}>
+        <button className="btn btn-primary" disabled={busy || datesOutside}>
           Save
         </button>
       </div>

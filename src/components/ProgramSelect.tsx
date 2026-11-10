@@ -51,7 +51,7 @@ export function ProgramSelect({
       <select
         id={id}
         aria-label={label ? undefined : "Points program"}
-        className={`input appearance-none pr-10 ${value || typing ? "" : "text-zinc-400"}`}
+        className={`input appearance-none pr-9 ${value || typing ? "" : "text-faint"}`}
         value={typing ? OTHER : value}
         onChange={(e) => {
           if (e.target.value === OTHER) {
@@ -77,7 +77,7 @@ export function ProgramSelect({
         ))}
         <option value={OTHER}>Other (type it in)</option>
       </select>
-      <Icon name="chevron" className="pointer-events-none absolute top-1/2 right-4 size-4 -translate-y-1/2 text-zinc-400" />
+      <Icon name="chevron" className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-faint" />
       </div>
       {typing && (
         <input

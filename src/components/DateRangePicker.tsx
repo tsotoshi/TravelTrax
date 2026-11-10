@@ -57,13 +57,13 @@ export function DateRangePicker({
   return (
     <div className="select-none" onMouseLeave={() => setHover(null)}>
       <div className="mb-2 flex items-center justify-between">
-        <button type="button" className="btn btn-ghost size-9 rounded-full px-0" onClick={() => shift(-1)} aria-label="Previous month">
+        <button type="button" className="btn btn-ghost size-8 px-0 sm:size-8" onClick={() => shift(-1)} aria-label="Previous month">
           <Icon name="back" />
         </button>
-        <span className="text-xs font-medium text-zinc-500">
+        <span className="text-xs text-muted">
           {single ? "Tap a date" : choosingEnd ? "Now tap the end date" : start && end ? "Tap a new start date to change" : "Tap the start date"}
         </span>
-        <button type="button" className="btn btn-ghost size-9 rounded-full px-0" onClick={() => shift(1)} aria-label="Next month">
+        <button type="button" className="btn btn-ghost size-8 px-0 sm:size-8" onClick={() => shift(1)} aria-label="Next month">
           <Icon name="back" className="size-4 rotate-180" />
         </button>
       </div>
@@ -77,8 +77,8 @@ export function DateRangePicker({
           ];
           return (
             <div key={mi} className={mi === 1 ? "hidden sm:block" : ""}>
-              <div className="mb-2 text-center text-sm font-semibold">{monthLabel.format(m)}</div>
-              <div className="grid grid-cols-7 text-center text-[11px] font-medium text-zinc-400">
+              <div className="mb-1.5 text-center text-[13px] font-semibold tracking-tight">{monthLabel.format(m)}</div>
+              <div className="grid grid-cols-7 text-center text-[10.5px] font-medium tracking-wide text-faint">
                 {WEEK.map((w, i) => (
                   <div key={i} className="py-1">
                     {w}
@@ -96,19 +96,19 @@ export function DateRangePicker({
                   return (
                     <div
                       key={i}
-                      className={`relative h-10 ${inRange ? "bg-[var(--accent-soft)]" : ""} ${
-                        isStart && rangeEnd && rangeEnd !== start ? "rounded-l-full bg-[var(--accent-soft)]" : ""
-                      } ${isEnd && start && rangeEnd !== start ? "rounded-r-full bg-[var(--accent-soft)]" : ""}`}
+                      className={`relative h-10 sm:h-9 ${inRange ? "bg-accent-soft" : ""} ${
+                        isStart && rangeEnd && rangeEnd !== start ? "rounded-l-full bg-accent-soft" : ""
+                      } ${isEnd && start && rangeEnd !== start ? "rounded-r-full bg-accent-soft" : ""}`}
                     >
                       <button
                         type="button"
                         onClick={() => pick(d)}
                         onMouseEnter={() => setHover(d)}
-                        className={`absolute inset-0.5 rounded-full text-sm tabular-nums transition ${
+                        className={`absolute inset-0.5 rounded-full text-[13px] tabular-nums transition-colors duration-100 ${
                           edge
-                            ? "bg-[var(--accent)] font-semibold text-white dark:text-zinc-950"
-                            : "hover:bg-zinc-100 dark:hover:bg-zinc-800"
-                        } ${today && !edge ? "font-semibold text-[var(--accent)]" : ""}`}
+                            ? "bg-accent font-semibold text-white"
+                            : "hover:bg-subtle"
+                        } ${today && !edge ? "font-semibold text-accent-ink" : ""}`}
                         aria-pressed={edge}
                         aria-label={d}
                       >

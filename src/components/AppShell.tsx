@@ -31,7 +31,7 @@ function ThemeToggle() {
   const next: Theme = theme === "system" ? "light" : theme === "light" ? "dark" : "system";
   return (
     <button
-      className="btn btn-ghost size-10 px-0"
+      className="btn btn-ghost size-9 px-0"
       title={`Theme: ${theme} (switch to ${next})`}
       aria-label={`Theme: ${theme}`}
       onClick={() => {
@@ -61,33 +61,34 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-dvh">
-      <header className="sticky top-0 z-30 border-b border-zinc-200/80 bg-white/80 backdrop-blur-md dark:border-zinc-800 dark:bg-zinc-950/80">
-        <div className="mx-auto flex h-14 max-w-6xl items-center gap-2 px-4">
-          <Link href="/" className="mr-2 flex items-center gap-2 font-semibold tracking-tight">
-            <span className="inline-flex size-8 items-center justify-center rounded-xl bg-[var(--accent)] text-white dark:text-zinc-950">
-              <Icon name="plane" className="size-4" />
+      <header className="sticky top-0 z-30 border-b border-edge bg-canvas/80 pt-[env(safe-area-inset-top)] backdrop-blur-xl backdrop-saturate-150">
+        <div className="mx-auto flex h-13 max-w-6xl items-center gap-1 px-4 sm:px-6">
+          <Link href="/" className="mr-3 flex items-center gap-2.5 rounded-md focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent" aria-label="TravelTrax home">
+            <span className="relative inline-flex size-7 items-center justify-center rounded-[7px] bg-accent text-white shadow-[inset_0_1px_0_rgb(255_255_255/0.2)]">
+              <Icon name="plane" className="size-[15px]" />
             </span>
-            <span className="hidden sm:inline">TravelTrax</span>
+            <span className="hidden text-[15px] font-semibold tracking-[-0.02em] sm:inline">TravelTrax</span>
           </Link>
-          <nav className="flex gap-1">
+          <nav className="flex gap-0.5">
             {nav.map((n) => {
               const on = n.href === "/" ? pathname === "/" || pathname.startsWith("/trips") : pathname.startsWith(n.href);
               return (
                 <Link
                   key={n.href}
                   href={n.href}
-                  className={`btn h-9 px-3 ${on ? "bg-zinc-100 dark:bg-zinc-800" : "btn-ghost"}`}
+                  aria-current={on ? "page" : undefined}
+                  className={`btn h-8 gap-2 px-2.5 text-[13px] sm:h-8 ${on ? "bg-subtle text-fg" : "btn-ghost"}`}
                 >
-                  <Icon name={n.icon} />
+                  <Icon name={n.icon} className={`size-4 ${on ? "text-accent-ink" : ""}`} />
                   {n.label}
                 </Link>
               );
             })}
           </nav>
-          <div className="ml-auto flex items-center gap-1">
+          <div className="ml-auto flex items-center gap-0.5">
             <ThemeToggle />
             {mode === "supabase" && (
-              <button className="btn btn-ghost size-10 px-0" onClick={signOut} title={`Sign out ${userEmail ?? ""}`} aria-label="Sign out">
+              <button className="btn btn-ghost size-9 px-0" onClick={signOut} title={`Sign out ${userEmail ?? ""}`} aria-label="Sign out">
                 <Icon name="logout" />
               </button>
             )}
@@ -95,18 +96,18 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </header>
       {mode === "demo" && (
-        <div className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-xs text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-200">
+        <div className="border-b border-amber-500/15 bg-amber-500/[0.06] px-4 py-1.5 text-center text-xs text-amber-800 dark:text-amber-200/80">
           Demo mode — data is saved only in this browser. Add your Supabase keys to sign in and sync across devices.
         </div>
       )}
       {error && (
-        <div className="mx-auto mt-4 max-w-6xl px-4">
-          <div className="flex items-center gap-2 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/50 dark:text-red-300">
-            <Icon name="alert" /> {error}
+        <div className="mx-auto mt-4 max-w-6xl px-4 sm:px-6">
+          <div className="flex items-center gap-2 rounded-lg border border-red-500/20 bg-red-500/[0.06] px-3 py-2 text-[13px] text-red-700 dark:text-red-300">
+            <Icon name="alert" className="size-4 shrink-0" /> {error}
           </div>
         </div>
       )}
-      <main className="mx-auto max-w-6xl px-4 pt-5 pb-[max(2.5rem,env(safe-area-inset-bottom))] sm:pt-8">{children}</main>
+      <main className="mx-auto max-w-6xl px-4 pt-6 pb-[max(2.5rem,env(safe-area-inset-bottom))] sm:px-6 sm:pt-8">{children}</main>
     </div>
   );
 }

@@ -66,11 +66,11 @@ export function TripForm({
       <div>
         <div className="mb-2 flex items-baseline justify-between">
           <span className="label mb-0">When?</span>
-          <span className="text-sm font-medium">
+          <span className="text-[13px] font-medium tabular-nums">
             {start ? (end ? `${fmtRange(start, end)} · ${nights(start, end)} nights` : `${fmtRange(start, start)} → pick end`) : ""}
           </span>
         </div>
-        <div className="rounded-2xl bg-zinc-50 p-3 ring-1 ring-zinc-900/5 dark:bg-zinc-950 dark:ring-white/10">
+        <div className="rounded-xl border border-edge p-3">
           <DateRangePicker
             start={start}
             end={end}
@@ -84,15 +84,15 @@ export function TripForm({
       {showNotes ? (
         <div>
           <label className="label" htmlFor="t-notes">Notes</label>
-          <textarea id="t-notes" className="input h-auto min-h-20 py-3" value={notes} onChange={(e) => setNotes(e.target.value)} />
+          <textarea id="t-notes" className="input h-auto min-h-20 py-2.5 sm:h-auto" value={notes} onChange={(e) => setNotes(e.target.value)} />
         </div>
       ) : (
-        <button type="button" className="text-sm font-medium text-[var(--accent)]" onClick={() => setShowNotes(true)}>
+        <button type="button" className="text-[13px] font-medium text-accent-ink hover:underline underline-offset-2" onClick={() => setShowNotes(true)}>
           + Add notes
         </button>
       )}
-      {err && <p className="text-sm text-red-600">{err}</p>}
-      <div className="flex gap-2 pt-1">
+      {err && <p className="text-[13px] text-red-600 dark:text-red-400">{err}</p>}
+      <div className="flex gap-2 border-t border-edge pt-4">
         <button type="button" className="btn btn-secondary flex-1" onClick={onCancel}>
           Cancel
         </button>

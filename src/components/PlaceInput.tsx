@@ -82,10 +82,10 @@ export function PlaceInput({
 
   return (
     <div className="relative">
-      <Icon name="pin" className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-zinc-400" />
+      <Icon name="pin" className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-faint" />
       <input
         id={id}
-        className="input pl-10"
+        className="input pl-9"
         autoComplete="off"
         value={value}
         placeholder={placeholder}
@@ -114,9 +114,9 @@ export function PlaceInput({
         aria-expanded={open && options.length > 0}
         aria-autocomplete="list"
       />
-      {loading && <span className="absolute top-1/2 right-3.5 size-4 -translate-y-1/2 animate-spin rounded-full border-2 border-zinc-300 border-t-[var(--accent)]" />}
+      {loading && <span className="absolute top-1/2 right-3.5 size-4 -translate-y-1/2 animate-spin rounded-full border-2 border-edge-strong border-t-accent" />}
       {open && options.length > 0 && (
-        <ul role="listbox" className="card absolute inset-x-0 z-30 mt-1.5 max-h-64 overflow-auto p-1.5 shadow-xl">
+        <ul role="listbox" className="popover absolute inset-x-0 z-30 mt-1.5 max-h-64 overflow-auto">
           {options.map((o, i) => (
             <li key={o}>
               <button
@@ -125,11 +125,11 @@ export function PlaceInput({
                 aria-selected={i === active}
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => choose(o)}
-                className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm ${
-                  i === active ? "bg-zinc-100 dark:bg-zinc-800" : "hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                className={`flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm transition-colors ${
+                  i === active ? "bg-subtle" : "hover:bg-subtle"
                 }`}
               >
-                <Icon name={recentMatches.includes(o) ? "map" : "pin"} className="size-4 shrink-0 text-zinc-400" />
+                <Icon name={recentMatches.includes(o) ? "map" : "pin"} className="size-4 shrink-0 text-faint" />
                 <span className="truncate">{o}</span>
               </button>
             </li>

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { Icon } from "@/components/Icon";
 import { TripForm } from "@/components/TripForm";
-import { BarList, CategoryIcon, CategoryLegend, CategoryStrip, StatBox, EmptyState, ExportMenu, Modal, YearChart } from "@/components/ui";
+import { BarList, CategoryIcon, CategoryLegend, CategoryStrip, EmptyState, ExportMenu, Modal, YearChart } from "@/components/ui";
 import { EMPTY_SUMMARY, summarizeByTrip } from "@/lib/calc";
 import { compact, fmtRange, nights, pts, usd } from "@/lib/format";
 import { useStore } from "@/lib/store";
@@ -56,11 +56,11 @@ export default function Dashboard() {
   const shownIds = new Set(shown.map((t) => t.id));
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="space-y-5 sm:space-y-6">
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight">Your travels</h1>
-          <p className="text-sm text-zinc-500">{year === "all" ? "All trips" : `Trips in ${year}`}</p>
+          <h1 className="text-[26px] leading-tight font-semibold tracking-[-0.025em]">Your travels</h1>
+          <p className="mt-0.5 text-[13px] text-muted">{year === "all" ? "All trips" : `Trips in ${year}`}</p>
         </div>
         <div className="flex gap-2">
           {trips.length > 0 && (
@@ -79,7 +79,7 @@ export default function Dashboard() {
       {trips.length === 0 ? (
         <EmptyState icon="plane" title="No trips yet">
           <p>Create your first trip, import a spreadsheet, or load sample data to explore.</p>
-          <div className="mt-4 flex flex-wrap justify-center gap-2">
+          <div className="mt-5 flex flex-wrap justify-center gap-2">
             <button className="btn btn-primary" onClick={() => setCreating(true)}>
               <Icon name="plus" /> New trip
             </button>
@@ -100,30 +100,33 @@ export default function Dashboard() {
         </EmptyState>
       ) : (
         <>
-          <section className="hero p-5 sm:p-7">
-            <div className="text-sm font-medium text-white/75">{year === "all" ? "Total spent on travel" : `Spent on travel in ${year}`}</div>
-            <div className="mt-1 text-4xl font-semibold tracking-tight tabular-nums sm:text-5xl">{usd(Math.round(totals.cash))}</div>
-            <div className="mt-6 grid grid-cols-3 gap-3">
-              {[
-                ["Points", compact(totals.points)],
-                ["Trips", String(shown.length)],
-                ["Nights", String(shown.reduce((s, t) => s + nights(t.start_date, t.end_date), 0))],
-              ].map(([l, v]) => (
-                <div key={l} className="rounded-2xl bg-white/12 px-3 py-2.5 backdrop-blur-sm">
-                  <div className="text-[11px] font-medium tracking-wide text-white/70 uppercase">{l}</div>
-                  <div className="mt-0.5 truncate text-lg font-semibold tabular-nums sm:text-xl">{v}</div>
-                </div>
-              ))}
+          {/* Summary */}
+          <section className="card grid grid-cols-3 sm:grid-cols-[1.6fr_1fr_1fr_1fr]">
+            <div className="col-span-3 border-b border-line px-4 py-4 sm:col-span-1 sm:border-r sm:border-b-0 sm:border-line sm:px-6">
+              <div className="eyebrow">{year === "all" ? "Total spent on travel" : `Spent on travel in ${year}`}</div>
+              <div className="mt-2 text-[30px] leading-none font-semibold tracking-[-0.035em] tabular-nums sm:text-[34px]">
+                {usd(Math.round(totals.cash))}
+              </div>
             </div>
+            {[
+              ["Points", compact(totals.points)],
+              ["Trips", String(shown.length)],
+              ["Nights", String(shown.reduce((s, t) => s + nights(t.start_date, t.end_date), 0))],
+            ].map(([l, v], i) => (
+              <div key={l} className={`flex flex-col justify-end px-4 py-3.5 sm:px-6 sm:py-4 ${i > 0 ? "border-l border-line" : ""}`}>
+                <div className="eyebrow">{l}</div>
+                <div className="mt-1.5 truncate text-lg leading-none font-semibold tracking-[-0.02em] tabular-nums sm:text-[22px]">{v}</div>
+              </div>
+            ))}
           </section>
 
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-            <section className="card flex flex-col p-5">
-              <h2 className="mb-4 text-sm font-semibold">Spending by year</h2>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+            <section className="card flex flex-col p-4 md:col-span-2 lg:col-span-1">
+              <h2 className="card-title mb-2">Spending by year</h2>
               <YearChart data={byYear} selected={year} onSelect={setYear} />
             </section>
-            <section className="card p-5">
-              <h2 className="mb-4 text-sm font-semibold">By category</h2>
+            <section className="card p-4">
+              <h2 className="card-title mb-2.5">By category</h2>
               <BarList
                 empty="No spending yet"
                 items={CATEGORIES.filter((c) => totals.cats.get(c.key)).map((c) => ({
@@ -139,21 +142,21 @@ export default function Dashboard() {
                 }))}
               />
             </section>
-            <section className="card p-5">
-              <h2 className="mb-4 text-sm font-semibold">Points by program</h2>
+            <section className="card p-4">
+              <h2 className="card-title mb-2.5">Points by program</h2>
               <BarList
                 empty="No points redeemed"
                 items={[...totals.progs]
                   .sort((a, b) => b[1] - a[1])
-                  .map(([p, n]) => ({ key: p, label: p, value: n, display: pts(n) }))}
+                  .map(([p, n]) => ({ key: p, label: p, value: n, display: pts(n), color: "var(--accent-ink)" }))}
               />
             </section>
           </div>
 
           <section>
-            <div className="mb-3 flex items-center gap-3">
-              <h2 className="text-lg font-semibold">Trips</h2>
-              <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 py-1">
+            <div className="mb-2.5 flex items-center justify-between gap-3">
+              <h2 className="text-[15px] font-semibold tracking-tight">Trips</h2>
+              <div className="-mx-1 flex gap-0.5 overflow-x-auto px-1 py-0.5">
                 {["all", ...years].map((y) => (
                   <button key={y} className={`chip ${year === y ? "chip-on" : ""}`} onClick={() => setYear(y)}>
                     {y === "all" ? "All years" : y}
@@ -161,32 +164,55 @@ export default function Dashboard() {
                 ))}
               </div>
             </div>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {shown.map((t) => {
-                const s = sums.get(t.id) ?? EMPTY_SUMMARY;
-                return (
-                  <Link key={t.id} href={`/trips/${t.id}`} className="card group block p-5 transition hover:-translate-y-0.5 hover:shadow-lg">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <h3 className="truncate font-semibold group-hover:text-[var(--accent)]">{t.name}</h3>
-                        <p className="mt-0.5 flex items-center gap-1 truncate text-sm text-zinc-500">
-                          <Icon name="pin" className="size-3.5 shrink-0" />
-                          {t.destination || "—"}
-                        </p>
-                      </div>
-                      <span className="shrink-0 rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
-                        {fmtRange(t.start_date, t.end_date)}
-                      </span>
-                    </div>
-                    <div className="mt-4 mb-3 grid grid-cols-2 gap-2.5">
-                      <StatBox label="Cash spent" value={usd(Math.round(s.cash))} />
-                      <StatBox label="Points used" value={s.points ? pts(s.points) : "—"} />
-                    </div>
-                    <CategoryStrip parts={s.categories} />
-                    <CategoryLegend parts={s.categories} />
-                  </Link>
-                );
-              })}
+            <div className="card overflow-hidden">
+              <div className="eyebrow hidden grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_7rem_7rem_1rem] gap-x-6 border-b border-line bg-subtle/40 px-5 py-2 sm:grid">
+                <span>Trip</span>
+                <span>Breakdown</span>
+                <span className="text-right">Cash</span>
+                <span className="text-right">Points</span>
+                <span />
+              </div>
+              <ul className="divide-y divide-line">
+                {shown.map((t) => {
+                  const s = sums.get(t.id) ?? EMPTY_SUMMARY;
+                  return (
+                    <li key={t.id}>
+                      <Link
+                        href={`/trips/${t.id}`}
+                        className="group grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 px-4 py-3 transition-[background-color] hover:bg-subtle/60 focus-visible:bg-subtle focus-visible:outline-none sm:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_7rem_7rem_1rem] sm:gap-x-6 sm:px-5"
+                      >
+                        <div className="min-w-0">
+                          <h3 className="truncate text-sm font-medium">{t.name}</h3>
+                          <p className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-muted">
+                            <Icon name="pin" className="size-3 shrink-0" />
+                            <span className="truncate">{t.destination || "—"}</span>
+                            <span className="text-faint">·</span>
+                            <span className="shrink-0 tabular-nums">{fmtRange(t.start_date, t.end_date)}</span>
+                          </p>
+                        </div>
+                        <div className="col-span-2 row-start-2 min-w-0 sm:col-span-1 sm:row-start-auto">
+                          <CategoryStrip parts={s.categories} />
+                          <CategoryLegend parts={s.categories} />
+                        </div>
+                        <div className="flex flex-col items-end text-right sm:contents">
+                          <span className="text-sm font-semibold tabular-nums sm:text-right">{usd(Math.round(s.cash))}</span>
+                          <span className={`text-xs tabular-nums sm:text-right sm:text-sm ${s.points ? "text-muted sm:text-fg" : "hidden text-faint sm:block"}`}>
+                            {s.points ? (
+                              <>
+                                {pts(s.points)}
+                                <span className="text-faint"> pts</span>
+                              </>
+                            ) : (
+                              "—"
+                            )}
+                          </span>
+                        </div>
+                        <Icon name="back" className="hidden size-3.5 rotate-180 text-faint transition-transform group-hover:translate-x-0.5 group-hover:text-muted sm:block" />
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
             </div>
           </section>
         </>
@@ -209,14 +235,14 @@ export default function Dashboard() {
 
 function Skeleton() {
   return (
-    <div className="animate-pulse space-y-6">
-      <div className="h-8 w-48 rounded-lg bg-zinc-200 dark:bg-zinc-800" />
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
+    <div className="animate-pulse space-y-8">
+      <div className="h-8 w-48 rounded-md bg-subtle" />
+      <div className="h-20 rounded-xl bg-subtle" />
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         {[0, 1, 2].map((i) => (
-          <div key={i} className="h-24 rounded-2xl bg-zinc-200 dark:bg-zinc-800" />
+          <div key={i} className="h-44 rounded-xl bg-subtle" />
         ))}
       </div>
-      <div className="h-56 rounded-2xl bg-zinc-200 dark:bg-zinc-800" />
     </div>
   );
 }

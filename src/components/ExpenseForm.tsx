@@ -89,13 +89,13 @@ export function ExpenseForm({
                 type="button"
                 key={c.key}
                 onClick={() => setD((p) => ({ ...p, category: c.key }))}
-                className={`flex flex-col items-center gap-1 rounded-2xl px-1 py-2.5 text-[11px] leading-tight transition ${
-                  on ? "font-semibold" : "text-zinc-500 ring-1 ring-zinc-900/5 hover:bg-zinc-50 dark:ring-white/10 dark:hover:bg-zinc-800/60"
+                className={`flex flex-col items-center gap-1 rounded-lg border px-1 py-2 text-[11px] leading-tight transition-colors ${
+                  on ? "border-transparent font-semibold" : "border-edge text-muted hover:border-edge-strong hover:bg-subtle hover:text-fg"
                 }`}
-                style={on ? { backgroundColor: `${c.color}1f`, color: c.color, boxShadow: `inset 0 0 0 1.5px ${c.color}` } : undefined}
+                style={on ? { backgroundColor: `${c.color}17`, color: c.color, boxShadow: `inset 0 0 0 1px ${c.color}` } : undefined}
                 aria-pressed={on}
               >
-                <Icon name={c.icon} className="size-[18px]" />
+                <Icon name={c.icon} className="size-4" />
                 <span className="w-full truncate text-center">{c.short}</span>
               </button>
             );
@@ -108,12 +108,12 @@ export function ExpenseForm({
         <input id={id("desc")} name="desc" className="input" value={d.description} onChange={set("description")} />
       </div>
 
-      <div className={`grid gap-3 ${isFlight ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-3"}`}>
+      <div className={`grid gap-2.5 ${isFlight ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-3"}`}>
         <div>
           <label className="label" htmlFor={id("amount")}>Cash</label>
           <div className="relative">
-            <span className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-sm text-zinc-400">$</span>
-            <input id={id("amount")} name="amount" className="input pl-7 tabular-nums" inputMode="decimal" placeholder="0.00" value={d.amount} onChange={set("amount")} />
+            <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm text-faint">$</span>
+            <input id={id("amount")} name="amount" className="input pl-6 tabular-nums" inputMode="decimal" placeholder="0.00" value={d.amount} onChange={set("amount")} />
           </div>
         </div>
         <div>
@@ -123,21 +123,21 @@ export function ExpenseForm({
         <div>
           <label className="label" htmlFor={id("fees")}>Fees</label>
           <div className="relative">
-            <span className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-sm text-zinc-400">$</span>
-            <input id={id("fees")} name="fees" className="input pl-7 tabular-nums" inputMode="decimal" placeholder="0.00" value={d.fees} onChange={set("fees")} />
+            <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm text-faint">$</span>
+            <input id={id("fees")} name="fees" className="input pl-6 tabular-nums" inputMode="decimal" placeholder="0.00" value={d.fees} onChange={set("fees")} />
           </div>
         </div>
         {isFlight && (
           <div>
             <label className="label" htmlFor={id("baggage")}>Baggage</label>
             <div className="relative">
-              <span className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-sm text-zinc-400">$</span>
-              <input id={id("baggage")} name="baggage" className="input pl-7 tabular-nums" inputMode="decimal" placeholder="0.00" value={d.baggage} onChange={set("baggage")} />
+              <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm text-faint">$</span>
+              <input id={id("baggage")} name="baggage" className="input pl-6 tabular-nums" inputMode="decimal" placeholder="0.00" value={d.baggage} onChange={set("baggage")} />
             </div>
           </div>
         )}
       </div>
-      <p className="-mt-2 text-xs text-zinc-500">Fees are taxes &amp; fees paid in cash on a points booking. Fees{isFlight ? " and baggage" : ""} count toward dollars spent.</p>
+      <p className="-mt-2 text-xs text-muted">Fees are taxes &amp; fees paid in cash on a points booking. Fees{isFlight ? " and baggage" : ""} count toward dollars spent.</p>
 
       {d.points.trim() !== "" && d.points.trim() !== "0" && (
         <ProgramSelect id={id("program")} value={d.program} onChange={(v) => setD((p) => ({ ...p, program: v }))} programs={programs} category={d.category} />
@@ -146,13 +146,13 @@ export function ExpenseForm({
       <div>
         <span className="label">{isHotel ? "Check-in → check-out" : "Date (optional)"}</span>
         <button type="button" className="input flex items-center justify-between text-left" onClick={() => setShowCal((s) => !s)}>
-          <span className={d.start ? "" : "text-zinc-400"}>
+          <span className={d.start ? "tabular-nums" : "text-faint"}>
             {d.start ? (isHotel && d.end ? `${fmtRange(d.start, d.end)} · ${nights(d.start, d.end)} nights` : fmtRange(d.start, d.start)) : "Pick a date"}
           </span>
-          <Icon name="calendar" className="size-4 text-zinc-400" />
+          <Icon name="calendar" className="size-4 text-faint" />
         </button>
         {showCal && (
-          <div className="mt-2 rounded-2xl p-3 ring-1 ring-zinc-900/5 dark:ring-white/10">
+          <div className="mt-2 animate-[fade_.15s_ease-out] rounded-xl border border-edge p-3">
             <DateRangePicker
               start={d.start}
               end={isHotel ? d.end : null}
@@ -163,7 +163,7 @@ export function ExpenseForm({
               }}
             />
             {d.start && (
-              <button type="button" className="mt-1 text-xs text-zinc-500 underline" onClick={() => setD((p) => ({ ...p, start: null, end: null }))}>
+              <button type="button" className="mt-1 text-xs text-muted underline-offset-2 hover:text-fg hover:underline" onClick={() => setD((p) => ({ ...p, start: null, end: null }))}>
                 Clear date
               </button>
             )}
@@ -174,25 +174,25 @@ export function ExpenseForm({
       {showEntryType && (
         <div>
           <span className="label">Counts as</span>
-          <div className="grid grid-cols-3 rounded-2xl bg-zinc-100 p-1 dark:bg-zinc-800">
+          <div className="segmented grid-cols-3">
             {ENTRY_TYPES.map((t) => (
               <button
                 type="button"
                 key={t.key}
                 onClick={() => setD((p) => ({ ...p, entry_type: t.key }))}
-                className={`rounded-xl px-1 py-1.5 text-xs font-medium transition ${d.entry_type === t.key ? "bg-white shadow-sm dark:bg-zinc-950" : "text-zinc-500"}`}
+                className={`segment px-1 text-xs ${d.entry_type === t.key ? "segment-on" : ""}`}
               >
                 {t.key === "category_total" ? "Trip total" : t.label}
               </button>
             ))}
           </div>
-          <p className="mt-1.5 text-xs text-zinc-500">{ENTRY_TYPE_MAP[d.entry_type].help}</p>
+          <p className="mt-1.5 text-xs text-muted">{ENTRY_TYPE_MAP[d.entry_type].help}</p>
         </div>
       )}
 
-      {err && <p className="text-sm text-red-600">{err}</p>}
+      {err && <p className="text-[13px] text-red-600 dark:text-red-400">{err}</p>}
 
-      <div className="flex items-center gap-2 pt-1">
+      <div className="flex items-center gap-2 border-t border-edge pt-4">
         <button type="button" className="btn btn-danger mr-auto" onClick={onDelete}>
           <Icon name="trash" /> Delete
         </button>

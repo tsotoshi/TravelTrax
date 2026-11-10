@@ -180,39 +180,44 @@ export function AddExpenseWizard({
   return (
     <div>
       {/* Progress */}
-      <div className="mb-5 flex items-center gap-3">
+      <div className="mb-6 flex h-8 items-center gap-3">
         {step !== "category" && (
-          <button className="btn btn-ghost -ml-2 size-9 rounded-full px-0" onClick={back} aria-label="Back">
+          <button className="btn btn-ghost -ml-2 size-8 px-0 sm:size-8" onClick={back} aria-label="Back">
             <Icon name="back" />
           </button>
         )}
-        <div className="flex flex-1 gap-1.5">
+        <div className="flex flex-1 gap-1">
           {steps.map((s, i) => (
-            <div key={s} className={`h-1.5 flex-1 rounded-full transition ${i <= progress ? "bg-[var(--accent)]" : "bg-zinc-200 dark:bg-zinc-800"}`} />
+            <div key={s} className={`h-[3px] flex-1 rounded-full transition-colors duration-300 ${i <= progress ? "bg-accent" : "bg-subtle"}`} />
           ))}
         </div>
       </div>
 
       {step === "category" && (
         <Prompt title="What did you spend on?" sub={saved ? `✓ ${saved}. Add another?` : trip.name}>
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {CATEGORIES.map((c) => {
               const count = tripExpenses.filter((e) => e.category === c.key).length;
               return (
                 <button
                   key={c.key}
-                  className={`tile ${c.key === "other" ? "col-span-2" : ""}`}
+                  className={`tile py-3 ${c.key === "other" ? "sm:col-span-2" : ""}`}
                   onClick={() => {
                     setCategory(c.key);
                     setSaved(null);
                     go(entryStep(c.key));
                   }}
                 >
-                  <span className="inline-flex size-11 items-center justify-center rounded-2xl" style={{ backgroundColor: `${c.color}1f`, color: c.color }}>
-                    <Icon name={c.icon} className="size-5" />
+                  <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg" style={{ backgroundColor: `${c.color}1a`, color: c.color }}>
+                    <Icon name={c.icon} className="size-[18px]" />
                   </span>
-                  <span className="font-semibold">{c.label}</span>
-                  {count > 0 && <span className="absolute top-3 right-3 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">{count} added</span>}
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium">{c.label}</span>
+                  {count > 0 && (
+                    <span className="badge gap-1 bg-emerald-500/10 text-emerald-700 normal-case dark:text-emerald-300">
+                      <Icon name="check" className="size-3" />
+                      {count} added
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -235,25 +240,27 @@ export function AddExpenseWizard({
           }
         >
           <button
-            className="tile mb-3 flex-row items-center gap-3 text-left"
+            className="tile mb-3"
             onClick={() => {
               setStart(trip.start_date);
               setEnd(oneWay ? null : trip.end_date);
             }}
           >
-            <Icon name="calendar" className="size-5 text-[var(--accent)]" />
-            <span className="flex-1">
-              <span className="block font-semibold">Use trip dates</span>
-              <span className="text-sm text-zinc-500">{fmtRange(trip.start_date, trip.end_date)}</span>
+            <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg bg-subtle text-muted">
+              <Icon name="calendar" className="size-[18px]" />
             </span>
-            {start === trip.start_date && (oneWay || end === trip.end_date) && <Icon name="check" className="size-5 text-[var(--accent)]" />}
+            <span className="flex-1">
+              <span className="block text-sm font-medium">Use trip dates</span>
+              <span className="text-xs text-muted tabular-nums">{fmtRange(trip.start_date, trip.end_date)}</span>
+            </span>
+            {start === trip.start_date && (oneWay || end === trip.end_date) && <Icon name="check" className="size-[18px] text-accent-ink" />}
           </button>
           {category === "flights" && (
-            <div className="mb-3 grid grid-cols-2 rounded-2xl bg-zinc-100 p-1 dark:bg-zinc-800">
+            <div className="segmented mb-3 grid-cols-2">
               {[false, true].map((ow) => (
                 <button
                   key={String(ow)}
-                  className={`rounded-xl py-2 text-sm font-medium transition ${oneWay === ow ? "bg-white shadow-sm dark:bg-zinc-950" : "text-zinc-500"}`}
+                  className={`segment ${oneWay === ow ? "segment-on" : ""}`}
                   onClick={() => {
                     setOneWay(ow);
                     if (ow) setEnd(null);
@@ -264,7 +271,7 @@ export function AddExpenseWizard({
               ))}
             </div>
           )}
-          <div className="rounded-2xl p-3 ring-1 ring-zinc-900/5 dark:ring-white/10">
+          <div className="rounded-xl border border-edge p-3">
             <DateRangePicker
               start={start}
               end={end}
@@ -297,11 +304,11 @@ export function AddExpenseWizard({
         >
           <div className="space-y-4">
             {category === "other" && (
-              <div className="grid grid-cols-2 rounded-2xl bg-zinc-100 p-1 dark:bg-zinc-800">
+              <div className="segmented grid-cols-2">
                 {[true, false].map((t) => (
                   <button
                     key={String(t)}
-                    className={`rounded-xl py-2 text-sm font-medium transition ${isTotal === t ? "bg-white shadow-sm dark:bg-zinc-950" : "text-zinc-500"}`}
+                    className={`segment ${isTotal === t ? "segment-on" : ""}`}
                     onClick={() => setIsTotal(t)}
                   >
                     {t ? "Total for the trip" : "One purchase"}
@@ -317,7 +324,7 @@ export function AddExpenseWizard({
             ) : (
               <MoneyGroup value={single} onChange={setSingle} category={category} programs={programs} autoFocus />
             )}
-            <p className="-mt-1 text-xs text-zinc-500">Leave blank anything you didn&apos;t pay. Fees are taxes &amp; fees paid in cash, e.g. on a points booking.</p>
+            <p className="-mt-1 text-xs text-muted">Leave blank anything you didn&apos;t pay. Fees are taxes &amp; fees paid in cash, e.g. on a points booking.</p>
             <div>
               <label className="label" htmlFor="wz-desc">
                 {category === "flights" ? "Route (optional)" : category === "lodging" ? "Hotel name (optional)" : "Note (optional)"}
@@ -331,7 +338,7 @@ export function AddExpenseWizard({
               />
             </div>
           </div>
-          {err && <p className="mt-3 text-sm text-red-600">{err}</p>}
+          {err && <p className="mt-3 text-[13px] text-red-600 dark:text-red-400">{err}</p>}
           <Next
             onClick={() => {
               const e = validateAmounts();
@@ -347,19 +354,19 @@ export function AddExpenseWizard({
 
       {step === "review" && category && (
         <Prompt title="Look good?" sub="Tap an entry to change it.">
-          <div className="space-y-2">
+          <div className="divide-y divide-line overflow-hidden rounded-xl border border-edge">
             {build().map((r, i) => (
               <button
                 key={i}
-                className="flex w-full items-center gap-3 rounded-2xl bg-zinc-50 p-3.5 text-left transition hover:bg-zinc-100 active:scale-[0.99] dark:bg-zinc-950 dark:hover:bg-zinc-800"
+                className="flex w-full items-center gap-3 px-3.5 py-3 text-left transition-[background-color] hover:bg-subtle"
                 onClick={() => go("amounts")}
               >
-                <span className="inline-flex size-10 items-center justify-center rounded-xl" style={{ backgroundColor: `${CATEGORY_MAP[category].color}1f`, color: CATEGORY_MAP[category].color }}>
-                  <Icon name={CATEGORY_MAP[category].icon} className="size-5" />
+                <span className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg" style={{ backgroundColor: `${CATEGORY_MAP[category].color}1a`, color: CATEGORY_MAP[category].color }}>
+                  <Icon name={CATEGORY_MAP[category].icon} className="size-4" />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <div className="truncate font-semibold">{r.description}</div>
-                  <div className="text-xs text-zinc-500">
+                  <div className="truncate text-sm font-medium">{r.description}</div>
+                  <div className="text-xs text-muted">
                     {[
                       r.end_date && r.expense_date ? `${fmtRange(r.expense_date, r.end_date)} · ${nights(r.expense_date, r.end_date)} nights` : fmtShortDate(r.expense_date),
                       r.entry_type === "category_total" ? "Trip total" : null,
@@ -369,20 +376,20 @@ export function AddExpenseWizard({
                       .join(" · ")}
                   </div>
                 </div>
-                <div className="text-right">
+                <div className="shrink-0 text-right text-sm">
                   {dollars(r) > 0 && <div className="font-semibold tabular-nums">{usd(dollars(r), true)}</div>}
-                  {r.points > 0 && <div className="font-semibold tabular-nums">{pts(r.points)} pts</div>}
-                  {extrasNote(dollars(r), r.fees, r.baggage) && <div className="text-xs text-zinc-500 tabular-nums">{extrasNote(dollars(r), r.fees, r.baggage)}</div>}
+                  {r.points > 0 && <div className="font-semibold tabular-nums">{pts(r.points)} <span className="font-normal text-faint">pts</span></div>}
+                  {extrasNote(dollars(r), r.fees, r.baggage) && <div className="text-xs text-muted tabular-nums">{extrasNote(dollars(r), r.fees, r.baggage)}</div>}
                 </div>
               </button>
             ))}
           </div>
-          {err && <p className="mt-3 text-sm text-red-600">{err}</p>}
+          {err && <p className="mt-3 text-[13px] text-red-600 dark:text-red-400">{err}</p>}
           <div className="mt-6 grid gap-2">
-            <button className="btn btn-primary h-12" disabled={busy} onClick={() => save(false)}>
+            <button className="btn btn-primary h-11 sm:h-10" disabled={busy} onClick={() => save(false)}>
               <Icon name="check" /> Save
             </button>
-            <button className="btn btn-secondary h-12" disabled={busy} onClick={() => save(true)}>
+            <button className="btn btn-secondary h-11 sm:h-10" disabled={busy} onClick={() => save(true)}>
               {category ? ANOTHER_LABEL[category] : "Save & add another"}
             </button>
           </div>
@@ -395,8 +402,8 @@ export function AddExpenseWizard({
 function Prompt({ title, sub, children }: { title: string; sub?: string; children: ReactNode }) {
   return (
     <div className="animate-[fade_.2s_ease-out]">
-      <h3 className="text-xl font-semibold tracking-tight">{title}</h3>
-      {sub && <p className="mt-1 text-sm text-zinc-500">{sub}</p>}
+      <h3 className="text-lg font-semibold tracking-[-0.02em]">{title}</h3>
+      {sub && <p className="mt-1 text-[13px] text-muted">{sub}</p>}
       <div className="mt-5">{children}</div>
     </div>
   );
@@ -404,7 +411,7 @@ function Prompt({ title, sub, children }: { title: string; sub?: string; childre
 
 function Next({ onClick, disabled }: { onClick: () => void; disabled?: boolean }) {
   return (
-    <button className="btn btn-primary mt-6 h-12 w-full" disabled={disabled} onClick={onClick}>
+    <button className="btn btn-primary mt-6 h-11 w-full sm:h-10" disabled={disabled} onClick={onClick}>
       Continue
     </button>
   );
@@ -430,20 +437,20 @@ function MoneyGroup({
   const flight = category === "flights";
   const set = (k: keyof Money) => (v: string) => onChange({ ...value, [k]: v });
   return (
-    <div className={label ? "rounded-2xl p-3.5 ring-1 ring-zinc-900/8 dark:ring-white/10" : ""}>
+    <div className={label ? "rounded-xl border border-edge p-3.5" : ""}>
       {label && (
         <div className="mb-3 flex items-baseline justify-between">
-          <span className="text-sm font-semibold">{label}</span>
-          {sub && <span className="text-xs text-zinc-500">{sub}</span>}
+          <span className="text-[13px] font-semibold">{label}</span>
+          {sub && <span className="text-xs text-muted tabular-nums">{sub}</span>}
         </div>
       )}
-      <div className={`grid gap-2.5 ${flight ? "grid-cols-2" : "grid-cols-3"}`}>
+      <div className={`grid gap-2 ${flight ? "grid-cols-2" : "grid-cols-3"}`}>
         <AmountInput label="Cash" prefix="$" value={value.cash} onChange={set("cash")} autoFocus={autoFocus} />
         <AmountInput label="Points" suffix="pts" numeric value={value.points} onChange={set("points")} />
         <AmountInput label="Fees" prefix="$" value={value.fees} onChange={set("fees")} />
         {flight && <AmountInput label="Baggage" prefix="$" value={value.baggage} onChange={set("baggage")} />}
       </div>
-      <div className="mt-2.5">
+      <div className="mt-2">
         <ProgramSelect value={value.program} onChange={set("program")} programs={programs} category={category} label="" placeholder="Points program (if you used points)" />
       </div>
     </div>
@@ -471,16 +478,16 @@ function AmountInput({
     <label className="block min-w-0">
       <span className="label">{label}</span>
       <span className="relative block">
-        {prefix && <span className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-zinc-400">{prefix}</span>}
+        {prefix && <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-faint">{prefix}</span>}
         <input
-          className={`input h-14 text-lg font-semibold tabular-nums ${prefix ? "pl-7" : ""} ${suffix ? "pr-10" : ""}`}
+          className={`input h-12 text-[17px] font-semibold tracking-tight tabular-nums sm:h-11 sm:text-base ${prefix ? "pl-6" : ""} ${suffix ? "pr-10" : ""}`}
           inputMode={numeric ? "numeric" : "decimal"}
           placeholder={numeric ? "0" : "0.00"}
           value={value}
           autoFocus={autoFocus}
           onChange={(e) => onChange(e.target.value)}
         />
-        {suffix && <span className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-xs text-zinc-400">{suffix}</span>}
+        {suffix && <span className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-xs text-faint">{suffix}</span>}
       </span>
     </label>
   );

@@ -260,19 +260,21 @@ function Importer() {
   const totalPts = selected.reduce((s, p) => s + p.points, 0);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Import expenses</h1>
-        <p className="text-sm text-zinc-500">CSV or Excel (.xlsx). Map your columns, review the rows, then import.</p>
+    <div className="mx-auto max-w-5xl space-y-4">
+      <div className="mb-8">
+        <h1 className="text-[26px] leading-tight font-semibold tracking-[-0.025em]">Import expenses</h1>
+        <p className="mt-0.5 text-[13px] text-muted">CSV or Excel (.xlsx). Map your columns, review the rows, then import.</p>
       </div>
 
       {/* 1. File */}
       <section className="card p-5">
-        <h2 className="mb-3 text-sm font-semibold">1 · Choose a file</h2>
-        <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-zinc-200 px-4 py-8 text-center transition hover:border-[var(--accent)] hover:bg-[var(--accent-soft)] dark:border-zinc-700">
-          <Icon name="upload" className="size-6 text-zinc-400" />
+        <StepTitle n={1}>Choose a file</StepTitle>
+        <label className="group flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-edge-strong bg-subtle/40 px-4 py-9 text-center transition-colors hover:border-accent hover:bg-accent-soft has-[:focus-visible]:border-accent has-[:focus-visible]:bg-accent-soft">
+          <span className="mb-1 inline-flex size-9 items-center justify-center rounded-lg border border-edge bg-surface text-muted transition-colors group-hover:text-accent-ink">
+            <Icon name="upload" className="size-[18px]" />
+          </span>
           <span className="text-sm font-medium">{fileName || "Select a .csv or .xlsx file"}</span>
-          <span className="text-xs text-zinc-500">Tip: files exported from TravelTrax import with every column mapped.</span>
+          <span className="text-xs text-muted">Tip: files exported from TravelTrax import with every column mapped.</span>
           <input
             type="file"
             accept=".csv,.tsv,.txt,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -299,10 +301,10 @@ function Importer() {
         {sheets && (
           <div className="mt-4 flex flex-wrap items-center gap-4">
             {sheets.length > 1 && (
-              <label className="flex items-center gap-2 text-sm">
+              <label className="flex items-center gap-2 text-[13px] text-muted">
                 Sheet
                 <select
-                  className="input h-9 w-auto"
+                  className="input h-9 w-auto text-fg sm:h-8"
                   value={sheetIdx}
                   onChange={(e) => {
                     const i = Number(e.target.value);
@@ -318,7 +320,7 @@ function Importer() {
                 </select>
               </label>
             )}
-            <label className="flex items-center gap-2 text-sm">
+            <label className="flex items-center gap-2 text-[13px]">
               <input
                 type="checkbox"
                 className="size-4 accent-[var(--accent)]"
@@ -332,16 +334,16 @@ function Importer() {
             </label>
           </div>
         )}
-        {err && <p className="mt-3 text-sm text-red-600">{err}</p>}
+        {err && <p className="mt-3 text-[13px] text-red-600 dark:text-red-400">{err}</p>}
       </section>
 
       {sheets && mapping && (
         <>
           {/* 2. Mapping */}
           <section className="card p-5">
-            <h2 className="mb-1 text-sm font-semibold">2 · Map columns</h2>
-            <p className="mb-4 text-xs text-zinc-500">Choose which spreadsheet column fills each field. Unmapped fields are left blank.</p>
-            <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
+            <StepTitle n={2}>Map columns</StepTitle>
+            <p className="-mt-1 mb-4 text-xs text-muted">Choose which spreadsheet column fills each field. Unmapped fields are left blank.</p>
+            <div className="grid gap-x-5 gap-y-3.5 sm:grid-cols-2 lg:grid-cols-3">
               {FIELDS.filter((f) => f.group === "expense")
                 .sort((a, b) => ORDER.indexOf(a.key) - ORDER.indexOf(b.key))
                 .map((f) => (
@@ -359,11 +361,12 @@ function Importer() {
               </div>
             </div>
 
-            <h3 className="mt-6 mb-1 text-sm font-semibold">Trip</h3>
-            <p className="mb-3 text-xs text-zinc-500">
+            <div className="mt-6 border-t border-edge pt-5">
+            <h3 className="card-title mb-1">Trip</h3>
+            <p className="mb-4 text-xs text-muted">
               Import everything into one trip, or map a trip-name column to split rows across trips (missing trips are created).
             </p>
-            <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-x-5 gap-y-3.5 sm:grid-cols-2 lg:grid-cols-3">
               <div>
                 <label className="label">{tripMapped ? "Trip for rows with no trip name" : "Import into trip"}</label>
                 <select className="input" value={targetTrip} onChange={(e) => setTargetTrip(e.target.value)} disabled={!ready}>
@@ -388,32 +391,33 @@ function Importer() {
               ))}
             </div>
             {!trips.length && !tripMapped && (
-              <p className="mt-3 text-sm text-zinc-500">
-                You have no trips yet. <Link href="/" className="text-[var(--accent)]">Create one</Link> or map a trip-name column.
+              <p className="mt-3 text-[13px] text-muted">
+                You have no trips yet. <Link href="/" className="font-medium text-accent-ink hover:underline">Create one</Link> or map a trip-name column.
               </p>
             )}
+            </div>
           </section>
 
           {/* 3. Preview */}
           <section className="card overflow-hidden">
-            <div className="flex flex-wrap items-center justify-between gap-3 p-5 pb-3">
+            <div className="flex flex-wrap items-center justify-between gap-3 px-5 pt-5 pb-4">
               <div>
-                <h2 className="text-sm font-semibold">3 · Review</h2>
-                <p className="text-xs text-zinc-500">
+                <StepTitle n={3} flush>Review</StepTitle>
+                <p className="mt-1 text-xs text-muted tabular-nums">
                   {selected.length} of {parsed.length} rows selected · {usd(totalCash, true)} · {pts(totalPts)} pts
                   {newTripNames.length > 0 && ` · ${newTripNames.length} new trip${newTripNames.length === 1 ? "" : "s"}`}
                 </p>
               </div>
-              <div className="flex gap-2">
-                <button className="btn btn-ghost h-8 text-xs" onClick={() => setExcluded(new Set())}>Select all</button>
-                <button className="btn btn-ghost h-8 text-xs" onClick={() => setExcluded(new Set(parsed.map((p) => p.i)))}>Select none</button>
+              <div className="flex gap-1">
+                <button className="btn btn-ghost h-8 text-xs sm:h-8" onClick={() => setExcluded(new Set())}>Select all</button>
+                <button className="btn btn-ghost h-8 text-xs sm:h-8" onClick={() => setExcluded(new Set(parsed.map((p) => p.i)))}>Select none</button>
               </div>
             </div>
-            <div className="max-h-[60vh] overflow-auto border-t border-zinc-100 dark:border-zinc-800">
-              <table className="w-full min-w-[760px] text-sm">
-                <thead className="sticky top-0 bg-zinc-50 text-left text-xs text-zinc-500 dark:bg-zinc-900">
+            <div className="max-h-[60vh] overflow-auto border-t border-edge">
+              <table className="w-full min-w-[760px] text-[13px]">
+                <thead className="sticky top-0 z-10 bg-surface text-left text-[11px] tracking-[0.05em] text-muted uppercase shadow-[inset_0_-1px_0_var(--edge)]">
                   <tr>
-                    <th className="w-10 px-4 py-2" />
+                    <th className="w-10 px-4 py-2.5" />
                     {tripMapped && <th className="px-2 py-2 font-medium">Trip</th>}
                     <th className="px-2 py-2 font-medium">Date</th>
                     <th className="px-2 py-2 font-medium">Category</th>
@@ -426,12 +430,12 @@ function Importer() {
                     <th className="px-2 py-2 font-medium">Type</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                <tbody className="divide-y divide-line">
                   {parsed.map((p) => {
                     const disabled = p.empty || p.errors.length > 0;
                     const on = !disabled && !excluded.has(p.i);
                     return (
-                      <tr key={p.i} className={on ? "" : "text-zinc-400"}>
+                      <tr key={p.i} className={`transition-colors hover:bg-subtle/50 ${on ? "" : "text-faint"}`}>
                         <td className="px-4 py-2">
                           <input
                             type="checkbox"
@@ -453,7 +457,7 @@ function Importer() {
                           <td className="max-w-40 truncate px-2 py-2">
                             {p.tripName || (targetTrip ? trips.find((t) => t.id === targetTrip)?.name : "")}
                             {p.tripName && !tripByName.has(p.tripName.toLowerCase()) && (
-                              <span className="ml-1 rounded bg-emerald-100 px-1 text-[10px] text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">new</span>
+                              <span className="badge ml-1.5 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">new</span>
                             )}
                           </td>
                         )}
@@ -466,7 +470,7 @@ function Importer() {
                         </td>
                         <td className="max-w-56 px-2 py-2">
                           <div className="truncate">{p.description}</div>
-                          {p.errors.length > 0 && !p.empty && <div className="text-xs text-red-600">{p.errors.join(", ")}</div>}
+                          {p.errors.length > 0 && !p.empty && <div className="text-xs text-red-600 dark:text-red-400">{p.errors.join(", ")}</div>}
                           {p.empty && <div className="text-xs">No amount or points — skipped</div>}
                         </td>
                         <td className="px-2 py-2 text-right tabular-nums">{p.amount ? usd(p.amount, true) : ""}</td>
@@ -481,8 +485,8 @@ function Importer() {
                 </tbody>
               </table>
             </div>
-            <div className="flex items-center justify-end gap-3 border-t border-zinc-100 p-4 dark:border-zinc-800">
-              {!tripMapped && !targetTrip && <span className="text-xs text-zinc-500">Choose a trip above to import.</span>}
+            <div className="flex items-center justify-end gap-3 border-t border-edge bg-subtle/40 px-5 py-3.5">
+              {!tripMapped && !targetTrip && <span className="text-xs text-muted">Choose a trip above to import.</span>}
               <button className="btn btn-primary" disabled={busy || !selected.length} onClick={doImport}>
                 {busy ? "Importing…" : `Import ${selected.length} row${selected.length === 1 ? "" : "s"}`}
               </button>
@@ -491,6 +495,15 @@ function Importer() {
         </>
       )}
     </div>
+  );
+}
+
+function StepTitle({ n, children, flush }: { n: number; children: React.ReactNode; flush?: boolean }) {
+  return (
+    <h2 className={`flex items-center gap-2.5 ${flush ? "" : "mb-4"}`}>
+      <span className="inline-flex size-5 items-center justify-center rounded-md border border-edge bg-subtle text-[11px] font-semibold text-muted tabular-nums">{n}</span>
+      <span className="card-title text-sm">{children}</span>
+    </h2>
   );
 }
 

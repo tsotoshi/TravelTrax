@@ -15,16 +15,16 @@ export default function Login() {
   return (
     <div className="flex min-h-dvh items-center justify-center p-4">
       <div className="w-full max-w-sm">
-        <div className="mb-6 flex flex-col items-center text-center">
-          <span className="mb-3 inline-flex size-12 items-center justify-center rounded-2xl bg-[var(--accent)] text-white dark:text-zinc-950">
-            <Icon name="plane" className="size-6" />
+        <div className="mb-8 flex flex-col items-center text-center">
+          <span className="mb-4 inline-flex size-11 items-center justify-center rounded-xl bg-accent text-white shadow-[inset_0_1px_0_rgb(255_255_255/0.2)]">
+            <Icon name="plane" className="size-5" />
           </span>
-          <h1 className="text-2xl font-semibold tracking-tight">TravelTrax</h1>
-          <p className="text-sm text-zinc-500">Travel spending and points, in one place.</p>
+          <h1 className="text-[22px] font-semibold tracking-[-0.025em]">TravelTrax</h1>
+          <p className="mt-0.5 text-[13px] text-muted">Travel spending and points, in one place.</p>
         </div>
 
         {!supabase ? (
-          <div className="card p-5 text-sm">
+          <div className="card p-6 text-[13px] text-muted">
             <p>Supabase isn&apos;t configured, so the app is running in demo mode.</p>
             <Link href="/" className="btn btn-primary mt-4 w-full">
               Open demo
@@ -32,7 +32,7 @@ export default function Login() {
           </div>
         ) : (
           <form
-            className="card space-y-4 p-5"
+            className="card space-y-4 p-6"
             onSubmit={async (e) => {
               e.preventDefault();
               setBusy(true);
@@ -47,7 +47,7 @@ export default function Login() {
                 setMsg({ ok: true, text: "Check your email to confirm your account, then sign in." });
             }}
           >
-            <div className="grid grid-cols-2 rounded-xl bg-zinc-100 p-1 dark:bg-zinc-800">
+            <div className="segmented grid-cols-2">
               {(["signin", "signup"] as const).map((m) => (
                 <button
                   key={m}
@@ -56,7 +56,7 @@ export default function Login() {
                     setMode(m);
                     setMsg(null);
                   }}
-                  className={`rounded-lg py-1.5 text-sm font-medium transition ${mode === m ? "bg-white shadow-sm dark:bg-zinc-950" : "text-zinc-500"}`}
+                  className={`segment ${mode === m ? "segment-on" : ""}`}
                 >
                   {m === "signin" ? "Sign in" : "Create account"}
                 </button>
@@ -79,7 +79,7 @@ export default function Login() {
                 onChange={(e) => setPassword(e.target.value)}
               />
             </div>
-            {msg && <p className={`text-sm ${msg.ok ? "text-emerald-600" : "text-red-600"}`}>{msg.text}</p>}
+            {msg && <p className={`text-[13px] ${msg.ok ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>{msg.text}</p>}
             <button className="btn btn-primary w-full" disabled={busy}>
               {busy ? "Please wait…" : mode === "signin" ? "Sign in" : "Create account"}
             </button>

@@ -97,6 +97,43 @@ export function BarList({ items, empty = "Nothing yet" }: { items: BarItem[]; em
   );
 }
 
+/** Category bars with a Cash / Points switch, so points-heavy trips are just as readable. */
+export function CategoryBreakdown({ parts }: { parts: { category: Category; cash: number; points: number }[] }) {
+  const [mode, setMode] = useState<"cash" | "points">("cash");
+  const total = parts.reduce((s, p) => s + p[mode], 0);
+  return (
+    <section className="card p-4">
+      <div className="mb-2.5 flex items-center justify-between gap-3">
+        <h2 className="card-title">{mode === "cash" ? "Cash" : "Points"} by category</h2>
+        <div className="segmented grid-cols-2" role="group" aria-label="Show cash or points">
+          {(["cash", "points"] as const).map((m) => (
+            <button key={m} type="button" className={`segment px-2.5 py-0.5 text-xs ${mode === m ? "segment-on" : ""}`} aria-pressed={mode === m} onClick={() => setMode(m)}>
+              {m === "cash" ? "Cash" : "Points"}
+            </button>
+          ))}
+        </div>
+      </div>
+      <BarList
+        empty={mode === "cash" ? "No cash spent" : "No points used"}
+        items={parts
+          .filter((p) => p[mode] > 0)
+          .map((p) => ({
+            key: p.category,
+            label: (
+              <span className="flex items-center gap-2">
+                <CategoryIcon category={p.category} size="sm" /> {CATEGORY_MAP[p.category].label}
+              </span>
+            ),
+            value: p[mode],
+            display: mode === "cash" ? usd(Math.round(p.cash)) : pts(p.points),
+            sub: total ? `${Math.round((p[mode] / total) * 100)}%` : undefined,
+            color: CATEGORY_MAP[p.category].color,
+          }))}
+      />
+    </section>
+  );
+}
+
 export function YearChart({
   data,
   selected,

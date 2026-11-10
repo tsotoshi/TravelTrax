@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { Icon } from "@/components/Icon";
 import { TripForm } from "@/components/TripForm";
-import { BarList, CategoryIcon, CategoryLegend, CategoryStrip, EmptyState, ExportMenu, Modal, YearChart } from "@/components/ui";
+import { BarList, CategoryBreakdown, CategoryLegend, CategoryStrip, EmptyState, ExportMenu, Modal, YearChart } from "@/components/ui";
 import { EMPTY_SUMMARY, summarizeByTrip } from "@/lib/calc";
 import { compact, fmtRange, nights, pts, usd } from "@/lib/format";
 import { useStore } from "@/lib/store";
@@ -38,6 +38,7 @@ export default function Dashboard() {
 
   const totals = useMemo(() => {
     const cats = new Map<string, number>();
+    const catPoints = new Map<string, number>();
     const progs = new Map<string, number>();
     let cash = 0;
     let points = 0;
@@ -45,10 +46,13 @@ export default function Dashboard() {
       const s = sums.get(t.id) ?? EMPTY_SUMMARY;
       cash += s.cash;
       points += s.points;
-      s.categories.forEach((c) => cats.set(c.category, (cats.get(c.category) ?? 0) + c.cash));
+      s.categories.forEach((c) => {
+        cats.set(c.category, (cats.get(c.category) ?? 0) + c.cash);
+        catPoints.set(c.category, (catPoints.get(c.category) ?? 0) + c.points);
+      });
       s.programs.forEach((p) => progs.set(p.program, (progs.get(p.program) ?? 0) + p.points));
     }
-    return { cash, points, cats, progs };
+    return { cash, points, cats, catPoints, progs };
   }, [shown, sums]);
 
   if (!ready) return <Skeleton />;
@@ -128,23 +132,9 @@ export default function Dashboard() {
               <h2 className="card-title mb-2">Spending by year</h2>
               <YearChart data={byYear} selected={year} onSelect={setYear} />
             </section>
-            <section className="card p-4">
-              <h2 className="card-title mb-2.5">Cash by category</h2>
-              <BarList
-                empty="No spending yet"
-                items={CATEGORIES.filter((c) => totals.cats.get(c.key)).map((c) => ({
-                  key: c.key,
-                  label: (
-                    <span className="flex items-center gap-2">
-                      <CategoryIcon category={c.key} size="sm" /> {c.label}
-                    </span>
-                  ),
-                  value: totals.cats.get(c.key) ?? 0,
-                  display: usd(Math.round(totals.cats.get(c.key) ?? 0)),
-                  color: c.color,
-                }))}
-              />
-            </section>
+            <CategoryBreakdown
+              parts={CATEGORIES.map((c) => ({ category: c.key, cash: totals.cats.get(c.key) ?? 0, points: totals.catPoints.get(c.key) ?? 0 }))}
+            />
             <section className="card p-4">
               <h2 className="card-title mb-2.5">Points by program</h2>
               <BarList

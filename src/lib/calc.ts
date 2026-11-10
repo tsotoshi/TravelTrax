@@ -1,4 +1,3 @@
-import { usd } from "./format";
 import { CATEGORIES, type Category, type Expense } from "./types";
 
 export interface CategorySummary {
@@ -27,18 +26,6 @@ const sum = (xs: Expense[], f: (e: Expense) => number) => xs.reduce((s, e) => s 
 const round = (n: number) => Math.round(n * 100) / 100;
 /** Everything paid in dollars for one entry: cash plus taxes & fees plus baggage. */
 export const dollars = (e: Pick<Expense, "amount" | "fees" | "baggage">) => round(e.amount + (e.fees ?? 0) + (e.baggage ?? 0));
-
-/**
- * Short note on the fees and baggage inside a dollar total, e.g. "incl. $5.60 fees",
- * or "taxes & fees" when they are the whole total. Null when there are none.
- */
-export function extrasNote(total: number, fees: number, baggage: number, whole = false): string | null {
-  const extra = round(fees + baggage);
-  if (!extra) return null;
-  const what = fees && baggage ? "fees & bags" : fees ? "fees" : "bags";
-  if (Math.abs(total - extra) < 0.005) return fees && baggage ? "fees & baggage" : fees ? "taxes & fees" : "baggage";
-  return `incl. ${whole ? usd(Math.round(extra)) : usd(extra, true)} ${what}`;
-}
 
 export const UNSPECIFIED_PROGRAM = "Unspecified program";
 

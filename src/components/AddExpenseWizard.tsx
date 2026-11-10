@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import { fmtRange, fmtShortDate, nights, outsideTrip, pts, usd } from "@/lib/format";
-import { dollars, extrasNote } from "@/lib/calc";
+import { dollars } from "@/lib/calc";
 import {
   CATEGORIES,
   CATEGORY_MAP,
@@ -400,7 +400,11 @@ export function AddExpenseWizard({
                 <div className="shrink-0 text-right text-sm">
                   {dollars(r) > 0 && <div className="font-semibold tabular-nums">{usd(dollars(r), true)}</div>}
                   {r.points > 0 && <div className="font-semibold tabular-nums">{pts(r.points)} <span className="font-normal text-faint">pts</span></div>}
-                  {extrasNote(dollars(r), r.fees, r.baggage) && <div className="text-xs text-muted tabular-nums">{extrasNote(dollars(r), r.fees, r.baggage)}</div>}
+                  {(r.fees > 0 || r.baggage > 0) && (
+                    <div className="text-xs text-muted tabular-nums">
+                      {[`Cash ${usd(r.amount)}`, r.fees ? `Fees ${usd(r.fees)}` : null, r.baggage ? `Bags ${usd(r.baggage)}` : null].filter(Boolean).join(" · ")}
+                    </div>
+                  )}
                 </div>
               </button>
             ))}

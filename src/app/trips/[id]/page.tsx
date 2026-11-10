@@ -7,7 +7,7 @@ import { AddExpenseWizard } from "@/components/AddExpenseWizard";
 import { ExpenseForm } from "@/components/ExpenseForm";
 import { Icon } from "@/components/Icon";
 import { TripForm } from "@/components/TripForm";
-import { BarList, CategoryIcon, EmptyState, ExportMenu, Modal, StatBox } from "@/components/ui";
+import { BarList, CategoryBreakdown, CategoryIcon, EmptyState, ExportMenu, Modal, StatBox } from "@/components/ui";
 import { dollars, summarize, type CategorySummary, type Summary } from "@/lib/calc";
 import { compact, fmtRange, fmtShortDate, nights, pts, usd, usdShort } from "@/lib/format";
 import { useStore } from "@/lib/store";
@@ -129,24 +129,7 @@ export default function TripPage() {
         </div>
 
         <aside className="space-y-2.5">
-          <section className="card p-4">
-            <h2 className="card-title mb-2.5">Cash by category</h2>
-            <BarList
-              empty="No spending yet"
-              items={s.categories.map((c) => ({
-                key: c.category,
-                label: (
-                  <span className="flex items-center gap-2">
-                    <CategoryIcon category={c.category} size="sm" /> {CATEGORY_MAP[c.category].label}
-                  </span>
-                ),
-                value: c.cash,
-                display: usd(Math.round(c.cash)),
-                sub: s.cash ? `${Math.round((c.cash / s.cash) * 100)}%` : undefined,
-                color: CATEGORY_MAP[c.category].color,
-              }))}
-            />
-          </section>
+          <CategoryBreakdown parts={s.categories} />
           <section className="card p-4">
             <h2 className="card-title mb-2.5">Points by program</h2>
             <BarList empty="No points redeemed" items={s.programs.map((p) => ({ key: p.program, label: p.program, value: p.points, display: pts(p.points), color: "var(--accent-ink)" }))} />

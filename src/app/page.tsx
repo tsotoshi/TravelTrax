@@ -158,12 +158,12 @@ export default function Dashboard() {
               </div>
             </div>
             <div className="card overflow-hidden">
-              <div className="eyebrow hidden grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_7rem_7rem_1rem] gap-x-6 border-b border-line bg-subtle/40 px-5 py-2 sm:grid">
+              <div className="eyebrow grid grid-cols-[minmax(0,1fr)_4.5rem_4.75rem] gap-x-4 border-b border-line bg-subtle/40 px-4 py-2 sm:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_7rem_7rem_1rem] sm:gap-x-6 sm:px-5">
                 <span>Trip</span>
-                <span>Breakdown</span>
+                <span className="hidden sm:block">Breakdown</span>
                 <span className="text-right">Cash</span>
                 <span className="text-right">Points</span>
-                <span />
+                <span className="hidden sm:block" />
               </div>
               <ul className="divide-y divide-line">
                 {shown.map((t) => {
@@ -172,32 +172,36 @@ export default function Dashboard() {
                     <li key={t.id}>
                       <Link
                         href={`/trips/${t.id}`}
-                        className="group grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-4 gap-y-2 px-4 py-3 transition-[background-color] hover:bg-subtle/60 focus-visible:bg-subtle focus-visible:outline-none sm:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_7rem_7rem_1rem] sm:gap-x-6 sm:px-5"
+                        className="group grid grid-cols-[minmax(0,1fr)_4.5rem_4.75rem] items-center gap-x-4 gap-y-2 px-4 py-3 transition-[background-color] hover:bg-subtle/60 focus-visible:bg-subtle focus-visible:outline-none sm:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_7rem_7rem_1rem] sm:gap-x-6 sm:px-5"
                       >
                         <div className="min-w-0">
                           <h3 className="truncate text-sm font-medium">{t.name}</h3>
-                          <p className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-muted">
+                          <p className="mt-0.5 hidden min-w-0 items-center sm:flex gap-1.5 text-xs text-muted">
                             <Icon name="pin" className="size-3 shrink-0" />
                             <span className="truncate">{t.destination || "—"}</span>
                             <span className="text-faint">·</span>
                             <span className="shrink-0 tabular-nums">{fmtRange(t.start_date, t.end_date)}</span>
                           </p>
                         </div>
-                        <div className="col-span-3 row-start-2 min-w-0 sm:col-span-1 sm:row-start-auto">
+                        <div className="col-span-3 row-start-3 min-w-0 sm:col-span-1 sm:row-start-auto">
                           <CategoryStrip parts={s.categories} />
                           <CategoryLegend parts={s.categories} />
                         </div>
                         <span className="text-right text-sm font-semibold tabular-nums">{usd(Math.round(s.cash))}</span>
                         <span className="text-right text-sm font-semibold tabular-nums">
                           {s.points ? (
-                            <>
-                              {pts(s.points)}
-                              <span className="font-normal text-faint sm:hidden"> pts</span>
-                            </>
+                            pts(s.points)
                           ) : (
                             <span className="font-normal text-faint">—</span>
                           )}
                         </span>
+                        {/* On phones the destination and dates get their own full-width line. */}
+                        <p className="col-span-3 -mt-1.5 flex min-w-0 items-center gap-1.5 text-xs text-muted sm:hidden">
+                          <Icon name="pin" className="size-3 shrink-0" />
+                          <span className="truncate">{t.destination || "—"}</span>
+                          <span className="text-faint">·</span>
+                          <span className="shrink-0 tabular-nums">{fmtRange(t.start_date, t.end_date)}</span>
+                        </p>
                         <Icon name="back" className="hidden size-3.5 rotate-180 text-faint transition-transform group-hover:translate-x-0.5 group-hover:text-muted sm:block" />
                       </Link>
                     </li>

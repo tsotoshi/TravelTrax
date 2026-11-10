@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+**Rule:** When the user says "wrap up", update the **Current status** section at the bottom of this file, then commit and push to `main`.
+
 TravelTrax is a personal travel expense and loyalty-points tracker: Next.js 16 (App Router) + React 19 + TypeScript + Tailwind 4 + Supabase. See `AGENTS.md`: this Next.js version has breaking changes, so read the relevant guide in `node_modules/next/dist/docs/` before writing Next.js code. `next dev` keeps rewriting `AGENTS.md`; commit it rather than reverting it.
 
 ## Commands
@@ -40,3 +42,21 @@ Without `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` in `.env.lo
 ## Deploy
 
 Vercel deploys production from `main`, with the two `NEXT_PUBLIC_SUPABASE_*` env vars set. Features deliberately left out of V1 (AI features, bank integrations, budgets, currency conversion, receipt scanning, point valuations) are listed in the README.
+
+## Current status
+
+_Last updated: 2026-11-10_
+
+**Finished recently**
+- v1 app: dashboard, trip detail, CSV/XLSX import and export, email login, demo mode, light/dark themes.
+- Step-by-step Add expense flow; separate departing and return flight legs; hotel check-out date (migration `002`).
+- Review round 2: every expense has Cash, Points and Fees, and flights also have Baggage (migration `003`); each flight has its own points program; trips can have any number of flights and hotels.
+- Visual redesign (Deep Violet palette, compact layout, refined charts). Styling and layout only.
+- Added this `CLAUDE.md`.
+
+**In progress**
+- No unfinished code. The visual redesign is done and can be reviewed.
+
+**Next steps**
+- Confirm migrations `002_expense_end_date.sql` and `003_expense_fees.sql` have been run on the production Supabase database.
+- Next round of review feedback on the redesign.

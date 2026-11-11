@@ -15,8 +15,7 @@ npm run dev        # http://localhost:3000
 |---------------|---------|
 | `/login`      | Email + password sign in / sign up (Supabase Auth) |
 | `/`           | Dashboard: cash, points and trip totals, spending by year (click a bar to filter), by category, points by program, trip cards with a year filter, new trip, export |
-| `/trips/[id]` | Trip detail: totals, guided **Add expense** flow (category → dates for flights & hotel, with "use trip dates" → cash, points, fees (+ baggage per flight) and program → review), "Next up" prompts for flights and hotel, tap any entry to edit, points by program, import/export |
-| `/import`     | CSV/XLSX import: pick file and sheet → map columns → preview, exclude rows → import into one trip or split by a trip-name column |
+| `/trips/[id]` | Trip detail: totals, guided **Add expense** flow (category → dates for flights & hotel, with "use trip dates" → cash, points, fees (+ baggage per flight) and program → review), "Next up" prompts for flights and hotel, tap any entry to edit, points by program, export |
 
 ## Database
 

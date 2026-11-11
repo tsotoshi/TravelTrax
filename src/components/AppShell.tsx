@@ -56,7 +56,6 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const nav = [
     { href: "/", label: "Dashboard", icon: "map" },
-    { href: "/import", label: "Import", icon: "upload" },
   ];
 
   return (

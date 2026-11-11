@@ -171,15 +171,9 @@ body {
     @apply mb-1.5 block text-xs font-medium text-muted;
   }
 
-  /* Menus, chips, segmented controls */
+  /* Menus, segmented controls */
   .menu-item {
     @apply block w-full rounded-md px-2.5 py-1.5 text-left text-sm text-fg transition-colors hover:bg-subtle;
-  }
-  .chip {
-    @apply h-7 rounded-md px-2.5 text-xs font-medium whitespace-nowrap text-muted transition-colors hover:bg-subtle hover:text-fg;
-  }
-  .chip-on {
-    @apply bg-accent-soft text-accent-ink hover:bg-accent-soft hover:text-accent-ink;
   }
   .segmented {
     @apply grid rounded-lg border border-edge bg-subtle p-0.5;

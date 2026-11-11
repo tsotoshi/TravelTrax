@@ -84,14 +84,11 @@ export default function Dashboard() {
 
       {trips.length === 0 ? (
         <EmptyState icon="plane" title="No trips yet">
-          <p>Create your first trip, import a spreadsheet, or load sample data to explore.</p>
+          <p>Create your first trip, or load sample data to explore.</p>
           <div className="mt-5 flex flex-wrap justify-center gap-2">
             <button className="btn btn-primary" onClick={() => setCreating(true)}>
               <Icon name="plus" /> New trip
             </button>
-            <Link href="/import" className="btn btn-secondary">
-              <Icon name="upload" /> Import
-            </Link>
             <button
               className="btn btn-secondary"
               disabled={loadingSamples}
@@ -126,13 +123,14 @@ export default function Dashboard() {
               <span>
                 <b className="font-semibold text-fg">{shown.reduce((s, t) => s + nights(t.start_date, t.end_date), 0)}</b> nights
               </span>
-              <span className="ml-auto flex items-center gap-2">
-                <span className="hidden text-xs sm:inline">Charts show</span>
-                <MeasureSwitch value={measure} onChange={setMeasure} />
-              </span>
             </div>
           </section>
 
+          <section>
+          <div className="mb-2.5 flex items-center justify-between gap-3">
+            <h2 className="text-[15px] font-semibold tracking-tight">Spending</h2>
+            <MeasureSwitch value={measure} onChange={setMeasure} />
+          </div>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
             <section className="card flex flex-col p-4 md:col-span-2 lg:col-span-1">
               <h2 className="card-title mb-2">{measure === "cash" ? "Cash spent by year" : "Points used by year"}</h2>
@@ -152,17 +150,31 @@ export default function Dashboard() {
               />
             </section>
           </div>
+          </section>
 
           <section>
             <div className="mb-2.5 flex items-center justify-between gap-3">
-              <h2 className="text-[15px] font-semibold tracking-tight">Trips</h2>
-              <div className="-mx-1 flex gap-0.5 overflow-x-auto px-1 py-0.5">
-                {["all", ...years].map((y) => (
-                  <button key={y} className={`chip ${year === y ? "chip-on" : ""}`} onClick={() => setYear(y)}>
-                    {y === "all" ? "All years" : y}
-                  </button>
-                ))}
+              <div className="flex shrink-0 items-center gap-2.5">
+                <h2 className="text-[15px] font-semibold tracking-tight">Trips</h2>
+                <MeasureSwitch value={measure} onChange={setMeasure} />
               </div>
+              {/* Looks like the Cash/Points switch (12px). The real select sits on top, invisible, at 16px so iPhones don't zoom on tap. */}
+              <label className="relative inline-flex shrink-0 items-center gap-1 rounded-lg border border-edge bg-subtle px-2.5 py-1 text-xs font-medium text-fg transition-colors hover:border-edge-strong has-[:focus-visible]:border-accent has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-accent/20">
+                {year === "all" ? "All years" : year}
+                <Icon name="chevron" className="size-3.5 text-muted" />
+                <select
+                  className="absolute inset-0 cursor-pointer appearance-none opacity-0 text-base"
+                  value={year}
+                  onChange={(e) => setYear(e.target.value)}
+                  aria-label="Show trips from"
+                >
+                  {["all", ...years].map((y) => (
+                    <option key={y} value={y}>
+                      {y === "all" ? "All years" : y}
+                    </option>
+                  ))}
+                </select>
+              </label>
             </div>
             <div className="card overflow-hidden">
               <div className="eyebrow grid grid-cols-[minmax(0,1fr)_4.5rem_4.75rem] gap-x-4 border-b border-line bg-subtle/40 px-4 py-2 sm:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_7rem_7rem_1rem] sm:gap-x-6 sm:px-5">

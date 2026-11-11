@@ -60,9 +60,6 @@ export default function TripPage() {
             <Icon name="back" className="size-3.5" /> All trips
           </Link>
           <div className="flex shrink-0 gap-1.5">
-            <Link href={`/import?trip=${trip.id}`} className="btn btn-secondary size-9 px-0 sm:size-8" title="Import expenses" aria-label="Import expenses">
-              <Icon name="upload" />
-            </Link>
             <ExportMenu filename={slug(trip.name)} trips={[trip]} expenses={list} buttonClass="btn btn-secondary size-9 px-0 sm:size-8" iconOnly />
             <button className="btn btn-secondary size-9 px-0 sm:size-8" onClick={() => setEditingTrip(true)} title="Edit trip" aria-label="Edit trip">
               <Icon name="pencil" />

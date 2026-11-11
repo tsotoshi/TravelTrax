@@ -29,15 +29,15 @@ Without `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` in `.env.lo
 - `calc.ts` → `summarize()` / `summarizeByTrip()` compute every total. Do the math here, not in components. Its **double-counting rule** is central: if a category has any `category_total` entries, those totals *are* the category's totals and its `transaction` / `additional` entries are shown as "included" but not added. Otherwise the category total = transactions + additional. Points follow the same rule, and `overflow` flags itemized entries that exceed the declared total.
 - Dollars spent for an entry = `amount` (cash) + `fees` + `baggage` (`dollars()` in `calc.ts`). Points are tracked separately, per `program`.
 - `types.ts` defines categories, entry types and the points-program lists. The internal category keys differ from their labels (`lodging` = "Hotel", `transport`, `other` = "Food, shopping & other"). Legacy `food` / `shopping` values are folded into `other` by `normCategory()` when data loads.
-- `spreadsheet.ts` handles CSV/XLSX import parsing (ExcelJS) and export. The import UI (column mapping, preview, splitting rows into trips) is in `app/import/page.tsx`.
+- `spreadsheet.ts` handles CSV/XLSX export (ExcelJS). Import was removed for this version.
 
-**UI:** The routes are `/` (dashboard), `/trips/[id]`, `/import` and `/login`. Expenses are added through the step-by-step `AddExpenseWizard`; `ExpenseForm` is used for editing. Each flight leg (departing and return) is a separate expense; a hotel stores its check-out date in `end_date`. Shared building blocks (modal, charts, stat boxes, export menu) are in `components/ui.tsx`. Destination autocomplete (`PlaceInput`) calls `photon.komoot.io` (no API key needed).
+**UI:** The routes are `/` (dashboard), `/trips/[id]` and `/login`. Expenses are added through the step-by-step `AddExpenseWizard`; `ExpenseForm` is used for editing. Each flight leg (departing and return) is a separate expense; a hotel stores its check-out date in `end_date`. Shared building blocks (modal, charts, stat boxes, export menu) are in `components/ui.tsx`. Destination autocomplete (`PlaceInput`) calls `photon.komoot.io` (no API key needed).
 
 **Styling:** Design tokens are CSS variables in `app/globals.css`, exposed through Tailwind `@theme` as `bg-surface`, `text-muted`, `border-edge`, `accent`, and so on. Prefer these tokens over raw colors. Dark mode is class-based (`.dark` on `<html>`), set by an inline script in `layout.tsx` and the toggle in `AppShell`.
 
 ## Database changes
 
-`supabase/schema.sql` is the full schema for new projects, and it ends with idempotent `alter table ... add column if not exists` statements. For a schema change, update `schema.sql`, add a numbered migration in `supabase/migrations/`, add the column to `expenseCols`/`tripCols` and `clean()` in `backend.ts`, update `types.ts`, and handle missing values in demo data and in imports and exports. Migrations are run by hand in the Supabase SQL editor, so call out new ones in commit messages.
+`supabase/schema.sql` is the full schema for new projects, and it ends with idempotent `alter table ... add column if not exists` statements. For a schema change, update `schema.sql`, add a numbered migration in `supabase/migrations/`, add the column to `expenseCols`/`tripCols` and `clean()` in `backend.ts`, update `types.ts`, and handle missing values in demo data and in exports. Migrations are run by hand in the Supabase SQL editor, so call out new ones in commit messages.
 
 ## Deploy
 
@@ -45,20 +45,25 @@ Vercel deploys production from `main`, with the two `NEXT_PUBLIC_SUPABASE_*` env
 
 ## Current status
 
-_Last updated: 2026-11-11_
+_Last updated: 2026-11-10_
 
 **Finished recently**
 - v1 app, step-by-step Add expense, separate flight legs, hotel check-out date (migration `002`), Cash/Points/Fees/Baggage on every expense (migration `003`), Deep Violet visual redesign.
 - Review round 3 (PR #1, merged to `main` and live):
   - Expense dates must fall within the trip: the calendar dims outside days, picking one shows an error with an "Extend trip" button (`TripDateError`), and editing trip dates can't strand expenses.
   - New trip form: Destination → Trip name (fills in from the destination as editable text) → Dates; Create button pinned with a "what's missing" note.
-  - One method per category: a trip total or single purchases, never both, enforced in Add expense and Edit (the `calc.ts` double-counting rule still covers imports).
+  - One method per category: a trip total or single purchases, never both, enforced in Add expense and Edit (the `calc.ts` double-counting rule still covers older data).
   - Trip detail: one collapsible list of categories with Cash and Points columns, whole dollars, date-only rows. Headline labels are "Cash spent" / "Points used".
   - Cash/Points switches: the trip page's category card has its own; the dashboard has one switch (`MeasureSwitch`) for the year chart, category card and trip strips.
   - Review step lists "Cash · Fees · Bags" instead of "taxes & fees"; dashboard trips list aligned on phones.
+- Import removed for this version: the `/import` page, its nav tab and buttons, and the CSV/XLSX reading code in `spreadsheet.ts` (export stays). It is in git history before this change if wanted back. "Load sample trips" only shows on an empty dashboard and adds, never replaces.
+- Dashboard switches: the Cash/Points switch moved off the summary box into a new "Spending" header above the three charts, and a second copy sits in the "Trips" header. Both share one setting.
+- Trips year filter is a compact dropdown (styled like the switch, with an invisible 16px native select on top so iPhones don't zoom) instead of a row of year buttons; the unused `.chip` styles were removed.
+- `next.config.ts` has `allowedDevOrigins` for `10.*` / `192.168.*`, so a phone on the same Wi-Fi can open `npm run dev` at the Mac's IP (dev only).
 
 **In progress**
 - The user is trying the round 3 version in production to decide on the cash/points presentation.
+- Not yet checked on a real phone: the Trips header (title, switch and year dropdown on one line) and the new year dropdown.
 - Open question: Cash/Points shown with switches (current) or in one view with no switches. The one-view option is mocked up at https://claude.ai/artifact/BCp6eTFVcdiL6TKxw8R1Ks: two small year charts (cash, points), a category table with both columns, no trip strips; the same table would go on trip detail.
 
 **Next steps**

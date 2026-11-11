@@ -7,11 +7,11 @@ import { AddExpenseWizard } from "@/components/AddExpenseWizard";
 import { ExpenseForm } from "@/components/ExpenseForm";
 import { Icon } from "@/components/Icon";
 import { TripForm } from "@/components/TripForm";
-import { BarList, CategoryIcon, EmptyState, ExportMenu, Modal, StatBox } from "@/components/ui";
-import { dollars, extrasNote, summarize, type CategorySummary } from "@/lib/calc";
+import { BarList, CategoryBreakdown, CategoryIcon, EmptyState, ExportMenu, Modal, StatBox } from "@/components/ui";
+import { dollars, summarize, type CategorySummary, type Summary } from "@/lib/calc";
 import { compact, fmtRange, fmtShortDate, nights, pts, usd, usdShort } from "@/lib/format";
 import { useStore } from "@/lib/store";
-import { CATEGORY_MAP, ENTRY_TYPE_MAP, type Category, type Expense } from "@/lib/types";
+import { CATEGORY_MAP, type Category, type Expense } from "@/lib/types";
 
 export default function TripPage() {
   const { id } = useParams<{ id: string }>();
@@ -89,10 +89,10 @@ export default function TripPage() {
           </div>
           <div className="grid shrink-0 grid-cols-2 border-t border-line pt-3.5 sm:border-t-0 sm:pt-0">
             <div className="pr-5 sm:pr-6 sm:text-right">
-              <StatBox label="Spent" value={usdShort(s.cash)} size="lg" />
+              <StatBox label="Cash spent" value={usdShort(s.cash)} size="lg" />
             </div>
             <div className="border-l border-line pl-5 sm:pl-6 sm:text-right">
-              <StatBox label="Points" value={compact(s.points)} size="lg" />
+              <StatBox label="Points used" value={compact(s.points)} size="lg" />
             </div>
           </div>
         </div>
@@ -124,29 +124,12 @@ export default function TripPage() {
               Tap <b className="font-medium text-fg">Add expense</b> and we&apos;ll walk you through it.
             </EmptyState>
           ) : (
-            s.categories.map((c) => <CategorySection key={c.category} c={c} counted={s.counted} onEdit={setEditing} />)
+            <ExpenseList s={s} onEdit={setEditing} />
           )}
         </div>
 
         <aside className="space-y-2.5">
-          <section className="card p-4">
-            <h2 className="card-title mb-2.5">By category</h2>
-            <BarList
-              empty="No spending yet"
-              items={s.categories.map((c) => ({
-                key: c.category,
-                label: (
-                  <span className="flex items-center gap-2">
-                    <CategoryIcon category={c.category} size="sm" /> {CATEGORY_MAP[c.category].label}
-                  </span>
-                ),
-                value: c.cash,
-                display: usd(Math.round(c.cash)),
-                sub: s.cash ? `${Math.round((c.cash / s.cash) * 100)}%` : undefined,
-                color: CATEGORY_MAP[c.category].color,
-              }))}
-            />
-          </section>
+          <CategoryBreakdown parts={s.categories} />
           <section className="card p-4">
             <h2 className="card-title mb-2.5">Points by program</h2>
             <BarList empty="No points redeemed" items={s.programs.map((p) => ({ key: p.program, label: p.program, value: p.points, display: pts(p.points), color: "var(--accent-ink)" }))} />
@@ -187,6 +170,8 @@ export default function TripPage() {
         <Modal title="Edit expense" onClose={() => setEditing(null)}>
           <ExpenseForm
             expense={editing}
+            trip={trip}
+            tripExpenses={list}
             programs={programs}
             onCancel={() => setEditing(null)}
             onDelete={() => onDeleteExpense(editing)}
@@ -213,103 +198,119 @@ export default function TripPage() {
   );
 }
 
+/** "Mar 14", or "Mar 14 – 18 · 4 nights" for a hotel stay. The trip header already shows the year. */
 function entryWhen(e: Expense) {
-  if (e.expense_date && e.end_date) return `${fmtRange(e.expense_date, e.end_date)} · ${nights(e.expense_date, e.end_date)} nights`;
-  return fmtShortDate(e.expense_date);
+  if (!e.expense_date) return "";
+  if (!e.end_date) return fmtShortDate(e.expense_date);
+  const sameMonth = e.expense_date.slice(0, 7) === e.end_date.slice(0, 7);
+  const to = sameMonth ? String(Number(e.end_date.slice(8))) : fmtShortDate(e.end_date);
+  return `${fmtShortDate(e.expense_date)} – ${to} · ${nights(e.expense_date, e.end_date)} nights`;
 }
 
-/** Shared column template so section totals line up with the rows below them. */
-const COLS = "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 sm:grid-cols-[minmax(0,1fr)_6.5rem_6.5rem_0.875rem]";
+const whole = (n: number) => usd(Math.round(n));
 
-function CategorySection({ c, counted, onEdit }: { c: CategorySummary; counted: Set<string>; onEdit: (e: Expense) => void }) {
-  const meta = CATEGORY_MAP[c.category];
-  const unitemized = c.totalCash - c.itemizedCash - c.extraCash;
-  const subline = [
-    c.mode === "total" && c.itemizedCash + c.extraCash > 0
-      ? `Trip total · ${usd(c.itemizedCash + c.extraCash, true)} itemized${unitemized > 0 ? `, ${usd(unitemized, true)} not itemized` : ""}`
-      : null,
-    extrasNote(c.cash, c.fees, c.baggage, true),
-  ].filter(Boolean);
+/** Shared column template so every Cash and Points figure lines up under the list header. */
+const COLS = "grid grid-cols-[minmax(0,1fr)_4.25rem_4.75rem] items-center gap-x-3 sm:grid-cols-[minmax(0,1fr)_6rem_6rem] sm:gap-x-4";
+
+/**
+ * One list of categories, each a single line with its Cash and Points. Tap a category
+ * to see its expenses; tap an expense to edit it.
+ */
+function ExpenseList({ s, onEdit }: { s: Summary; onEdit: (e: Expense) => void }) {
+  const [open, setOpen] = useState<Set<Category>>(new Set());
+  const toggle = (c: Category) =>
+    setOpen((prev) => {
+      const next = new Set(prev);
+      if (next.has(c)) next.delete(c);
+      else next.add(c);
+      return next;
+    });
+
   return (
     <section className="card overflow-hidden">
-      <header className={`${COLS} border-b border-line bg-subtle/40 px-4 py-2.5`}>
-        <div className="flex min-w-0 items-center gap-2.5">
-          <CategoryIcon category={c.category} />
-          <div className="min-w-0">
-            <h3 className="truncate text-sm font-semibold tracking-tight">{meta.label}</h3>
-            {subline.length > 0 && <p className="truncate text-xs text-muted">{subline.join(" · ")}</p>}
-          </div>
-        </div>
-        <div className="flex flex-col items-end sm:contents">
-          <span className="text-sm font-semibold tracking-tight tabular-nums sm:text-right">{usd(Math.round(c.cash))}</span>
-          <span className={`text-xs tabular-nums sm:text-right sm:text-sm sm:font-semibold sm:tracking-tight ${c.points ? "text-muted sm:text-fg" : "hidden text-faint sm:block"}`}>
-            {c.points ? (
-              <>
-                {pts(c.points)}
-                <span className="text-xs font-normal text-faint"> pts</span>
-              </>
-            ) : (
-              "—"
-            )}
-          </span>
-        </div>
-      </header>
-      {c.overflow && (
-        <div className="flex items-center gap-2 border-b border-amber-500/15 bg-amber-500/[0.06] px-4 py-2 text-xs text-amber-800 dark:text-amber-200/90">
-          <Icon name="alert" className="size-3.5 shrink-0" />
-          Itemized entries add up to more than the trip total. Edit the total to fix this.
-        </div>
-      )}
+      <div className={`${COLS} border-b border-line px-4 py-2.5`}>
+        <h2 className="eyebrow">Expenses</h2>
+        <span className="eyebrow text-right">Cash</span>
+        <span className="eyebrow text-right">Points</span>
+      </div>
       <ul className="divide-y divide-line">
-        {c.entries.map((e) => {
-          const included = !counted.has(e.id);
-          const showCash = dollars(e) > 0 || !e.points;
-          const amt = included ? "text-faint line-through" : "font-medium";
-          return (
-            <li key={e.id}>
-              <button
-                className={`${COLS} group w-full px-4 py-2 text-left transition-[background-color] hover:bg-subtle/60 focus-visible:bg-subtle focus-visible:outline-none`}
-                onClick={() => onEdit(e)}
-              >
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className={`truncate text-[13px] font-medium ${included ? "text-muted" : ""}`}>{e.description || meta.label}</span>
-                    {e.entry_type !== "transaction" && (
-                      <span className="badge border border-edge bg-subtle text-muted">
-                        {e.entry_type === "category_total" ? "Trip total" : ENTRY_TYPE_MAP[e.entry_type].label}
-                      </span>
-                    )}
-                  </div>
-                  <div className="mt-0.5 truncate text-xs text-muted">
-                    {[
-                      entryWhen(e),
-                      e.points ? (e.program ?? "—") : null,
-                      e.fees ? `${usd(e.fees)} fees` : null,
-                      e.baggage ? `${usd(e.baggage)} bags` : null,
-                      included ? "included in trip total" : null,
-                    ]
-                      .filter(Boolean)
-                      .join(" · ")}
-                  </div>
-                </div>
-                <div className="flex flex-col items-end text-[13px] tabular-nums sm:contents">
-                  <span className={`sm:text-right ${amt} ${showCash ? "" : "hidden sm:block"}`}>{showCash ? usd(dollars(e), true) : ""}</span>
-                  <span className={`sm:text-right ${amt} ${e.points > 0 ? "" : "hidden sm:block"}`}>
-                    {e.points > 0 && (
-                      <>
-                        {pts(e.points)}
-                        <span className="font-normal text-faint"> pts</span>
-                      </>
-                    )}
-                  </span>
-                </div>
-                <Icon name="pencil" className="hidden size-3.5 text-faint opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 sm:block" />
-              </button>
-            </li>
-          );
-        })}
+        {s.categories.map((c) => (
+          <CategoryRow key={c.category} c={c} counted={s.counted} open={open.has(c.category)} onToggle={() => toggle(c.category)} onEdit={onEdit} />
+        ))}
       </ul>
     </section>
+  );
+}
+
+function CategoryRow({
+  c,
+  counted,
+  open,
+  onToggle,
+  onEdit,
+}: {
+  c: CategorySummary;
+  counted: Set<string>;
+  open: boolean;
+  onToggle: () => void;
+  onEdit: (e: Expense) => void;
+}) {
+  const meta = CATEGORY_MAP[c.category];
+  const panel = `cat-${c.category}`;
+  return (
+    <li>
+      <button
+        className={`${COLS} w-full px-4 py-3 text-left transition-[background-color] hover:bg-subtle/60 focus-visible:bg-subtle focus-visible:outline-none`}
+        onClick={onToggle}
+        aria-expanded={open}
+        aria-controls={panel}
+      >
+        <span className="flex min-w-0 items-center gap-2">
+          <Icon name="chevron" className={`size-3.5 shrink-0 text-faint transition-transform duration-150 ${open ? "" : "-rotate-90"}`} />
+          <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: meta.color }} />
+          <span className="truncate text-sm font-medium">
+            <span className="sm:hidden">{meta.short}</span>
+            <span className="hidden sm:inline">{meta.label}</span>
+          </span>
+          <span className="shrink-0 text-xs text-faint tabular-nums">{c.entries.length}</span>
+          {c.overflow && <Icon name="alert" className="size-3.5 shrink-0 text-amber-600 dark:text-amber-400" />}
+        </span>
+        <span className="text-right text-sm font-semibold tabular-nums">{c.cash ? whole(c.cash) : ""}</span>
+        <span className="text-right text-sm font-semibold tabular-nums">{c.points ? pts(c.points) : ""}</span>
+      </button>
+      {open && (
+        <div id={panel} className="pb-1.5">
+          {c.overflow && (
+            <p className="mx-4 mb-1.5 flex items-center gap-2 rounded-md bg-amber-500/[0.08] px-2.5 py-1.5 text-xs text-amber-800 dark:text-amber-200/90">
+              <Icon name="alert" className="size-3.5 shrink-0" />
+              The purchases below add up to more than the trip total. Edit the total to fix this.
+            </p>
+          )}
+          <ul>
+            {c.entries.map((e) => {
+              const included = !counted.has(e.id);
+              const when = [entryWhen(e), included ? "in trip total" : null].filter(Boolean).join(" · ");
+              const cash = dollars(e);
+              return (
+                <li key={e.id}>
+                  <button
+                    className={`${COLS} w-full py-1.5 pr-4 pl-[2.375rem] text-left transition-[background-color] hover:bg-subtle/60 focus-visible:bg-subtle focus-visible:outline-none ${included ? "text-faint" : ""}`}
+                    onClick={() => onEdit(e)}
+                  >
+                    <span className="min-w-0">
+                      <span className="block truncate text-[13px]">{e.entry_type === "category_total" ? "Trip total" : e.description || meta.label}</span>
+                      {when && <span className="block truncate text-[11.5px] text-faint">{when}</span>}
+                    </span>
+                    <span className="text-right text-[13px] tabular-nums">{cash ? whole(cash) : ""}</span>
+                    <span className="text-right text-[13px] tabular-nums">{e.points ? pts(e.points) : ""}</span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+    </li>
   );
 }
 

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { Icon } from "@/components/Icon";
 import { TripForm } from "@/components/TripForm";
-import { BarList, CategoryIcon, CategoryLegend, CategoryStrip, EmptyState, ExportMenu, Modal, YearChart } from "@/components/ui";
+import { BarList, CategoryBreakdown, CategoryLegend, CategoryStrip, EmptyState, ExportMenu, MeasureSwitch, Modal, YearChart, type Measure } from "@/components/ui";
 import { EMPTY_SUMMARY, summarizeByTrip } from "@/lib/calc";
 import { compact, fmtRange, nights, pts, usd } from "@/lib/format";
 import { useStore } from "@/lib/store";
@@ -15,6 +15,8 @@ export default function Dashboard() {
   const { trips, expenses, ready, addTrip, loadSamples } = useStore();
   const router = useRouter();
   const [year, setYear] = useState("all");
+  // One switch decides whether every chart on the dashboard shows cash or points.
+  const [measure, setMeasure] = useState<Measure>("cash");
   const [creating, setCreating] = useState(false);
   const [loadingSamples, setLoadingSamples] = useState(false);
 
@@ -38,6 +40,7 @@ export default function Dashboard() {
 
   const totals = useMemo(() => {
     const cats = new Map<string, number>();
+    const catPoints = new Map<string, number>();
     const progs = new Map<string, number>();
     let cash = 0;
     let points = 0;
@@ -45,10 +48,13 @@ export default function Dashboard() {
       const s = sums.get(t.id) ?? EMPTY_SUMMARY;
       cash += s.cash;
       points += s.points;
-      s.categories.forEach((c) => cats.set(c.category, (cats.get(c.category) ?? 0) + c.cash));
+      s.categories.forEach((c) => {
+        cats.set(c.category, (cats.get(c.category) ?? 0) + c.cash);
+        catPoints.set(c.category, (catPoints.get(c.category) ?? 0) + c.points);
+      });
       s.programs.forEach((p) => progs.set(p.program, (progs.get(p.program) ?? 0) + p.points));
     }
-    return { cash, points, cats, progs };
+    return { cash, points, cats, catPoints, progs };
   }, [shown, sums]);
 
   if (!ready) return <Skeleton />;
@@ -100,48 +106,42 @@ export default function Dashboard() {
         </EmptyState>
       ) : (
         <>
-          {/* Summary */}
-          <section className="card grid grid-cols-3 sm:grid-cols-[1.6fr_1fr_1fr_1fr]">
-            <div className="col-span-3 border-b border-line px-4 py-4 sm:col-span-1 sm:border-r sm:border-b-0 sm:border-line sm:px-6">
-              <div className="eyebrow">{year === "all" ? "Total spent on travel" : `Spent on travel in ${year}`}</div>
-              <div className="mt-2 text-[30px] leading-none font-semibold tracking-[-0.035em] tabular-nums sm:text-[34px]">
-                {usd(Math.round(totals.cash))}
-              </div>
+          {/* Summary: Cash and Points side by side at equal size; trips and nights below. */}
+          <section className="card">
+            <div className="grid grid-cols-2">
+              {[
+                ["Cash spent", usd(Math.round(totals.cash))],
+                ["Points used", compact(totals.points)],
+              ].map(([l, v], i) => (
+                <div key={l} className={`min-w-0 px-4 py-4 sm:px-6 sm:py-5 ${i > 0 ? "border-l border-line" : ""}`}>
+                  <div className="eyebrow">{year === "all" ? l : `${l} in ${year}`}</div>
+                  <div className="mt-2 truncate text-[28px] leading-none font-semibold tracking-[-0.035em] tabular-nums sm:text-[34px]">{v}</div>
+                </div>
+              ))}
             </div>
-            {[
-              ["Points", compact(totals.points)],
-              ["Trips", String(shown.length)],
-              ["Nights", String(shown.reduce((s, t) => s + nights(t.start_date, t.end_date), 0))],
-            ].map(([l, v], i) => (
-              <div key={l} className={`flex flex-col justify-end px-4 py-3.5 sm:px-6 sm:py-4 ${i > 0 ? "border-l border-line" : ""}`}>
-                <div className="eyebrow">{l}</div>
-                <div className="mt-1.5 truncate text-lg leading-none font-semibold tracking-[-0.02em] tabular-nums sm:text-[22px]">{v}</div>
-              </div>
-            ))}
+            <div className="flex items-center gap-5 border-t border-line px-4 py-2 text-[13px] text-muted tabular-nums sm:px-6">
+              <span>
+                <b className="font-semibold text-fg">{shown.length}</b> {shown.length === 1 ? "trip" : "trips"}
+              </span>
+              <span>
+                <b className="font-semibold text-fg">{shown.reduce((s, t) => s + nights(t.start_date, t.end_date), 0)}</b> nights
+              </span>
+              <span className="ml-auto flex items-center gap-2">
+                <span className="hidden text-xs sm:inline">Charts show</span>
+                <MeasureSwitch value={measure} onChange={setMeasure} />
+              </span>
+            </div>
           </section>
 
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
             <section className="card flex flex-col p-4 md:col-span-2 lg:col-span-1">
-              <h2 className="card-title mb-2">Spending by year</h2>
-              <YearChart data={byYear} selected={year} onSelect={setYear} />
+              <h2 className="card-title mb-2">{measure === "cash" ? "Cash spent by year" : "Points used by year"}</h2>
+              <YearChart data={byYear} selected={year} onSelect={setYear} measure={measure} />
             </section>
-            <section className="card p-4">
-              <h2 className="card-title mb-2.5">By category</h2>
-              <BarList
-                empty="No spending yet"
-                items={CATEGORIES.filter((c) => totals.cats.get(c.key)).map((c) => ({
-                  key: c.key,
-                  label: (
-                    <span className="flex items-center gap-2">
-                      <CategoryIcon category={c.key} size="sm" /> {c.label}
-                    </span>
-                  ),
-                  value: totals.cats.get(c.key) ?? 0,
-                  display: usd(Math.round(totals.cats.get(c.key) ?? 0)),
-                  color: c.color,
-                }))}
-              />
-            </section>
+            <CategoryBreakdown
+              mode={measure}
+              parts={CATEGORIES.map((c) => ({ category: c.key, cash: totals.cats.get(c.key) ?? 0, points: totals.catPoints.get(c.key) ?? 0 }))}
+            />
             <section className="card p-4">
               <h2 className="card-title mb-2.5">Points by program</h2>
               <BarList
@@ -165,12 +165,12 @@ export default function Dashboard() {
               </div>
             </div>
             <div className="card overflow-hidden">
-              <div className="eyebrow hidden grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_7rem_7rem_1rem] gap-x-6 border-b border-line bg-subtle/40 px-5 py-2 sm:grid">
+              <div className="eyebrow grid grid-cols-[minmax(0,1fr)_4.5rem_4.75rem] gap-x-4 border-b border-line bg-subtle/40 px-4 py-2 sm:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_7rem_7rem_1rem] sm:gap-x-6 sm:px-5">
                 <span>Trip</span>
-                <span>Breakdown</span>
+                <span className="hidden sm:block">Breakdown</span>
                 <span className="text-right">Cash</span>
                 <span className="text-right">Points</span>
-                <span />
+                <span className="hidden sm:block" />
               </div>
               <ul className="divide-y divide-line">
                 {shown.map((t) => {
@@ -179,34 +179,36 @@ export default function Dashboard() {
                     <li key={t.id}>
                       <Link
                         href={`/trips/${t.id}`}
-                        className="group grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 px-4 py-3 transition-[background-color] hover:bg-subtle/60 focus-visible:bg-subtle focus-visible:outline-none sm:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_7rem_7rem_1rem] sm:gap-x-6 sm:px-5"
+                        className="group grid grid-cols-[minmax(0,1fr)_4.5rem_4.75rem] items-center gap-x-4 gap-y-2 px-4 py-3 transition-[background-color] hover:bg-subtle/60 focus-visible:bg-subtle focus-visible:outline-none sm:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_7rem_7rem_1rem] sm:gap-x-6 sm:px-5"
                       >
                         <div className="min-w-0">
                           <h3 className="truncate text-sm font-medium">{t.name}</h3>
-                          <p className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-muted">
+                          <p className="mt-0.5 hidden min-w-0 items-center sm:flex gap-1.5 text-xs text-muted">
                             <Icon name="pin" className="size-3 shrink-0" />
                             <span className="truncate">{t.destination || "—"}</span>
                             <span className="text-faint">·</span>
                             <span className="shrink-0 tabular-nums">{fmtRange(t.start_date, t.end_date)}</span>
                           </p>
                         </div>
-                        <div className="col-span-2 row-start-2 min-w-0 sm:col-span-1 sm:row-start-auto">
-                          <CategoryStrip parts={s.categories} />
-                          <CategoryLegend parts={s.categories} />
+                        <div className="col-span-3 row-start-3 min-w-0 sm:col-span-1 sm:row-start-auto">
+                          <CategoryStrip parts={s.categories} measure={measure} />
+                          <CategoryLegend parts={s.categories} measure={measure} />
                         </div>
-                        <div className="flex flex-col items-end text-right sm:contents">
-                          <span className="text-sm font-semibold tabular-nums sm:text-right">{usd(Math.round(s.cash))}</span>
-                          <span className={`text-xs tabular-nums sm:text-right sm:text-sm ${s.points ? "text-muted sm:text-fg" : "hidden text-faint sm:block"}`}>
-                            {s.points ? (
-                              <>
-                                {pts(s.points)}
-                                <span className="text-faint"> pts</span>
-                              </>
-                            ) : (
-                              "—"
-                            )}
-                          </span>
-                        </div>
+                        <span className="text-right text-sm font-semibold tabular-nums">{usd(Math.round(s.cash))}</span>
+                        <span className="text-right text-sm font-semibold tabular-nums">
+                          {s.points ? (
+                            pts(s.points)
+                          ) : (
+                            <span className="font-normal text-faint">—</span>
+                          )}
+                        </span>
+                        {/* On phones the destination and dates get their own full-width line. */}
+                        <p className="col-span-3 -mt-1.5 flex min-w-0 items-center gap-1.5 text-xs text-muted sm:hidden">
+                          <Icon name="pin" className="size-3 shrink-0" />
+                          <span className="truncate">{t.destination || "—"}</span>
+                          <span className="text-faint">·</span>
+                          <span className="shrink-0 tabular-nums">{fmtRange(t.start_date, t.end_date)}</span>
+                        </p>
                         <Icon name="back" className="hidden size-3.5 rotate-180 text-faint transition-transform group-hover:translate-x-0.5 group-hover:text-muted sm:block" />
                       </Link>
                     </li>

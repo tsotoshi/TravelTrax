@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { fmtRange, fmtShortDate, nights, pts, usd } from "@/lib/format";
-import { dollars, extrasNote } from "@/lib/calc";
+import { fmtRange, fmtShortDate, nights, outsideTrip, pts, usd } from "@/lib/format";
+import { dollars } from "@/lib/calc";
 import {
   CATEGORIES,
   CATEGORY_MAP,
@@ -14,6 +14,7 @@ import {
 import { DateRangePicker } from "./DateRangePicker";
 import { Icon } from "./Icon";
 import { ProgramSelect } from "./ProgramSelect";
+import { TripDateError } from "./TripDateError";
 
 type Step = "category" | "dates" | "amounts" | "review";
 interface Money {
@@ -76,6 +77,14 @@ export function AddExpenseWizard({
 
 
 
+  // A trip uses one method for "other": a trip total, or single purchases. Once one is used, it sticks.
+  const otherEntries = tripExpenses.filter((e) => e.category === "other");
+  const otherHasTotal = otherEntries.some((e) => e.entry_type === "category_total");
+  const otherHasItems = otherEntries.some((e) => e.entry_type !== "category_total");
+  const otherLock = otherHasTotal && !otherHasItems ? "total" : otherHasItems && !otherHasTotal ? "item" : null;
+  const asTotal = category === "other" && (otherLock ? otherLock === "total" : isTotal);
+  const datesOutside = isDated(category) && outsideTrip(trip, start, end);
+
   const steps: Step[] = isDated(category) ? ["category", "dates", "amounts", "review"] : ["category", "amounts", "review"];
   const progress = steps.indexOf(step);
 
@@ -136,9 +145,9 @@ export function AddExpenseWizard({
       {
         ...base,
         ...money(single),
-        description: description.trim() || (category === "other" && isTotal ? "Food, shopping & other" : CATEGORY_MAP[category].label),
+        description: description.trim() || (asTotal ? "Food, shopping & other" : CATEGORY_MAP[category].label),
         expense_date: null,
-        entry_type: category === "other" && isTotal ? "category_total" : "transaction",
+        entry_type: asTotal ? "category_total" : "transaction",
       },
     ];
   }
@@ -167,7 +176,6 @@ export function AddExpenseWizard({
         setDescription("");
         setStart(null);
         setEnd(null);
-        if (category === "other") setIsTotal(false);
         go(entryStep(category));
       } else onClose();
     } catch (e) {
@@ -277,13 +285,19 @@ export function AddExpenseWizard({
               end={end}
               single={category === "flights" && oneWay}
               defaultMonth={trip.start_date}
+              bounds={{ start: trip.start_date, end: trip.end_date }}
               onChange={(s, e) => {
                 setStart(s);
                 setEnd(e);
               }}
             />
           </div>
-          <Next disabled={!start || (!(category === "flights" && oneWay) && !end)} onClick={() => go("amounts")} />
+          {start && datesOutside && (
+            <div className="mt-3">
+              <TripDateError trip={trip} start={start} end={end} />
+            </div>
+          )}
+          <Next disabled={!start || (!(category === "flights" && oneWay) && !end) || datesOutside} onClick={() => go("amounts")} />
         </Prompt>
       )}
 
@@ -303,7 +317,14 @@ export function AddExpenseWizard({
           }
         >
           <div className="space-y-4">
-            {category === "other" && (
+            {category === "other" && otherLock && (
+              <p className="rounded-lg bg-subtle px-3 py-2 text-xs text-muted">
+                {otherLock === "total"
+                  ? "This trip already has a total for food, shopping & other, so this amount is added to that total."
+                  : "This trip lists food, shopping & other as single purchases, so this is saved as one more purchase."}
+              </p>
+            )}
+            {category === "other" && !otherLock && (
               <div className="segmented grid-cols-2">
                 {[true, false].map((t) => (
                   <button
@@ -379,7 +400,11 @@ export function AddExpenseWizard({
                 <div className="shrink-0 text-right text-sm">
                   {dollars(r) > 0 && <div className="font-semibold tabular-nums">{usd(dollars(r), true)}</div>}
                   {r.points > 0 && <div className="font-semibold tabular-nums">{pts(r.points)} <span className="font-normal text-faint">pts</span></div>}
-                  {extrasNote(dollars(r), r.fees, r.baggage) && <div className="text-xs text-muted tabular-nums">{extrasNote(dollars(r), r.fees, r.baggage)}</div>}
+                  {(r.fees > 0 || r.baggage > 0) && (
+                    <div className="text-xs text-muted tabular-nums">
+                      {[`Cash ${usd(r.amount)}`, r.fees ? `Fees ${usd(r.fees)}` : null, r.baggage ? `Bags ${usd(r.baggage)}` : null].filter(Boolean).join(" · ")}
+                    </div>
+                  )}
                 </div>
               </button>
             ))}

@@ -49,7 +49,7 @@ _Last updated: 2026-11-11_
 
 **Finished recently**
 - v1 app, step-by-step Add expense, separate flight legs, hotel check-out date (migration `002`), Cash/Points/Fees/Baggage on every expense (migration `003`), Deep Violet visual redesign.
-- Review round 3, on branch `claude/bold-gauss-y69yv7` in **PR #1 (not merged yet)**:
+- Review round 3 (PR #1, merged to `main` and live):
   - Expense dates must fall within the trip: the calendar dims outside days, picking one shows an error with an "Extend trip" button (`TripDateError`), and editing trip dates can't strand expenses.
   - New trip form: Destination → Trip name (fills in from the destination as editable text) → Dates; Create button pinned with a "what's missing" note.
   - One method per category: a trip total or single purchases, never both, enforced in Add expense and Edit (the `calc.ts` double-counting rule still covers imports).
@@ -58,11 +58,10 @@ _Last updated: 2026-11-11_
   - Review step lists "Cash · Fees · Bags" instead of "taxes & fees"; dashboard trips list aligned on phones.
 
 **In progress**
-- The user is trying the PR #1 version on the Vercel preview before merging.
+- The user is trying the round 3 version in production to decide on the cash/points presentation.
 - Open question: Cash/Points shown with switches (current) or in one view with no switches. The one-view option is mocked up at https://claude.ai/artifact/BCp6eTFVcdiL6TKxw8R1Ks: two small year charts (cash, points), a category table with both columns, no trip strips; the same table would go on trip detail.
 
 **Next steps**
-- Merge PR #1 once the user is happy with it.
 - Decide switch vs one view for cash and points.
 - Not yet clicked through in the app: the trip-total lock in the Edit form, and the block when changing trip dates would strand expenses.
 - Confirm migrations `002_expense_end_date.sql` and `003_expense_fees.sql` have been run on the production Supabase database.
